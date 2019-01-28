@@ -42,14 +42,6 @@ galaxy_info:
      versions:
      - 29
      - 28
-   - name: Red Hat
-     versions:
-     - 7.6
-     - 7.4
-   - name: Centos
-     versions:
-     - 7.6
-     - 7.4
   #   - 25
   # - name: SomePlatform
   #   versions:
