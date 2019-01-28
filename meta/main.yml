@@ -37,17 +37,17 @@ galaxy_info:
   # To view available platforms and versions (or releases), visit:
   # https://galaxy.ansible.com/api/v1/platforms/
   #
-  # platforms:
+   platforms:
    - name: Fedora
      versions:
      - 29
      - 28
-  - name: Red Hat
-    versions:
-    - 7.x
-  - name: Centos
-    versions:
-    - 7.x
+   - name: Red Hat
+     versions:
+     - 7.x
+   - name: Centos
+     versions:
+     - 7.x
   #   - 25
   # - name: SomePlatform
   #   versions:
