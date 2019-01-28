@@ -28,7 +28,7 @@
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   register: cloud_init_image_exist
-  
+
 
 - name: Copy cloud-init user data
   template: "src=user-data.j2 dest={{ cloud_init_user_data }} mode=0777"
