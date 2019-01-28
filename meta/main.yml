@@ -1,4 +1,5 @@
 galaxy_info:
+  role_name: ansible-role-rhel7-kvm-cloud-init
   author: Tosin Akinosho
   description: Deploy a Red Hat Linux 7.x
   company:
