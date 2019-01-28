@@ -1,8 +1,9 @@
+
 galaxy_info:
   role_name: ansible-role-rhel7-kvm-cloud-init
   author: Tosin Akinosho
   description: Deploy a Red Hat Linux 7.x
-  company:
+  company: Red Hat
 
   # If the issue tracker for your role is not on github, uncomment the
   # next line and provide a value
