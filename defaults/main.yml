@@ -1,0 +1,32 @@
+---
+# defaults file for ansible-role-rhel7-kvm-cloud-init
+# KVM config
+kvm_vm_pool_dir: "/home/example/kvmimages/"
+kvm_install_host: localhost
+
+# Cloud Init Config
+vm_data_dir: "/home/example/kvmimages/rhel7_machine"
+vm_recreate: true
+cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
+
+cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
+cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
+cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
+
+vm_name: rhel7_machine
+vm_local_hostname: rhel.example.com
+vm_hostname: rhel.example.com
+vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+vm_cpu: 2
+vm_memory: 2048
+vm_root_disk_size: 20G
+vm_network_br: ovsswitch
+source_bridge: ovs0
+
+#RHEL Subscription Info
+rhel_username: rh_username
+rhel_password: password
+
+#default RHEL user and password
+rhel_user: rhel_user
+rhel_user_password: rhel_user_password
