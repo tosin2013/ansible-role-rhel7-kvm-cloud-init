@@ -30,3 +30,22 @@ rhel_password: password
 #default RHEL user and password
 rhel_user: rhel_user
 rhel_user_password: rhel_user_password
+
+# Manage DNS Resolv.conf
+manage_resolv_conf: false
+dns_servers: "[]" # googles ['8.8.8.8','8.8.4.4']
+search_domain:
+
+# Storage Options 
+# block_size "bs" is the block size that will be used to read and/ or write the file. Increasing this can help with performance  or dictate how much data will be read or written.
+# count is the number of blocks that will be used.
+# normal External storage Options could be used for containers 
+
+externalstorage: false
+ext_block_size:  1M
+ext_block_count: 1024
+
+# GlusterFS storage Options can be  used with OpenShift deployments
+glusterstorage: false
+gluster_block_size: 1M
+gluster_block_count: 1024

@@ -1,9 +1,19 @@
 #cloud-config
+cloud_config_modules:
+  - resolv_conf
+  - cc_rh_subscription
 
 # Hostname management
 preserve_hostname: False
 hostname: {{ vm_local_hostname }}
 fqdn: {{ vm_hostname }}
+
+# RHEl Subscription Auto-attach
+rh_subscription:
+  username: {{ rhel_username }}
+  password: {{ rhel_password }}
+  auto-attach: True
+  service-level: self-support
 
 # Default Packages
 packages:
@@ -36,6 +46,16 @@ users:
     groups: wheel,adm,systemd-journal
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
 
+manage_resolv_conf: {{ manage_dns }}
+
+resolv_conf:
+  nameservers: {{ dns_servers }}
+  searchdomains:
+    - {{ search_domain }}
+  domain:  {{ search_domain }}
+  options:
+    rotate: true
+    timeout: 1
 
 # Change password (Reference Only)
 ssh_pwauth: True
@@ -43,13 +63,6 @@ chpasswd:
   list: |
     {{ rhel_user }}:{{ rhel_user_password }}
   expire: False
-
-# RHEl Subscription Auto-attach
-rh_subscription:
-  username: {{ rhel_username }}
-  password: {{ rhel_password }}
-  auto-attach: True
-  service-level: self-support
 
 # start qemu-guest-agent
 runcmd:
