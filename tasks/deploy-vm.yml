@@ -62,14 +62,14 @@
   become: yes
   delegate_to: "{{ kvm_install_host }}"
 
-- name: Create External Disk 
+- name: Create External Disk
   command: >
-     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img bs={{ ext_block_size }} count={{ ext_block_count }}
+     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img bs=1 count=0  seek={{ ext_block_size }}
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   when: externalstorage
 
-- name: Attach External Disk 
+- name: Attach External Disk
   command: >
     virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live
   become: yes
@@ -78,7 +78,7 @@
 
 - name: Create External Disk for glusterFS
   command: >
-     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img bs={{ gluster_block_size }} count={{ gluster_block_count }}
+     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img  bs=1 count=0  seek={{ gluster_block_size }}
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   when: glusterstorage
