@@ -104,11 +104,6 @@
   delegate_to: "{{ kvm_install_host }}"
   register: vm_network_br_dev_name
 
-- name: Enable KVM autostart feature
-  shell: >
-     virsh autostart {{ vm_name }}
-  become: yes
-
 - name: Gather IP address of the VM
   shell: |
      #!/bin/sh
@@ -130,10 +125,18 @@
 - name: Save {{ vm_ip }} to file
   local_action: copy content={{ vm_ip.stdout_lines }} dest={{inventory_dir}}/{{vm_name}}
 
+- name: Enable KVM autostart feature
+  command: >
+     virsh autostart {{ vm_name }}
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+
 - name: Eject CD-Rom
   shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
   become: yes
   delegate_to: "{{ kvm_install_host }}"
+
+
 
 # - name: Clean up cloud init files
 #   file: state=absent path="{{ item }}"
