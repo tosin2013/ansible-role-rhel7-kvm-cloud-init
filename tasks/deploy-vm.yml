@@ -71,7 +71,7 @@
 
 - name: Attach External Disk
   command: >
-    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live
+    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live --persistent
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   when: externalstorage
@@ -85,7 +85,7 @@
 
 - name: Attach External Disk  for glusterFS
   command: >
-    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img vdc --live
+    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img vdc --live --persistent
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   when: glusterstorage
