@@ -13,9 +13,9 @@ cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
 cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
 
-vm_name: rhel7_machine
-vm_local_hostname: rhel.example.com
-vm_hostname: rhel.example.com
+vm_name: ""
+vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
+vm_hostname: "{{ vm_local_hostname }}"
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 vm_cpu: 2
 vm_memory: 2048
@@ -24,17 +24,19 @@ vm_network_br: ovsswitch
 source_bridge: ovs0
 
 #RHEL Subscription Info
-rhel_username: rh_username
-rhel_password: password
+rhsm_username: ""
+rhsm_password: ""
+rhsm_org: ""
+rhsm_activationkey: ""
 
 #default RHEL user and password
-rhel_user: rhel_user
-rhel_user_password: rhel_user_password
+admin_user: admin
+admin_user_password: P@$$w0rd
 
 # Manage DNS Resolv.conf
-manage_resolv_conf: false
-dns_servers: "[]" # googles ['8.8.8.8','8.8.4.4']
-search_domain:
+manage_dns: true
+dns_servers: ['8.8.8.8','8.8.4.4']
+search_domains: ["{{ vm_domain }}"]
 
 # Storage Options 
 # block_size "bs" is the block size that will be used to read and/ or write the file. Increasing this can help with performance  or dictate how much data will be read or written.

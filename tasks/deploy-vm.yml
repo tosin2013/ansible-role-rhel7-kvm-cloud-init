@@ -1,147 +1,145 @@
 ---
+- name: get a list of all instances
+  virt:
+    command: list_vms
+  register: all_instances
 
-- name: Return ture(0) if domain exist
-  command: "virsh --connect qemu:///system dominfo {{ vm_name }}"
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  register: vm_exist
-  ignore_errors: yes
+- name: check if instance exist
+  debug:
+    msg: "{{ all_instances }}"
+  when: vm_name in all_instances.list_vms
 
 - name: If vm exist and vm_recreate is false, playbook fails
   fail:
     msg: "The vm exist and vm_recreate is false"
-  when: vm_exist.rc == 0 and not vm_recreate|bool
+  when: vm_name in all_instances.list_vms and not vm_recreate|bool
 
-- name: Undefine existing VM
-  command: " virsh --connect qemu:///system {{ item }} {{ vm_name }} "
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  with_items:
-  - destroy
-  - undefine
-  ignore_errors: yes
-  when: vm_exist.rc == 0 and vm_recreate|bool
+- name: Undefine existing VM to recreate it
+  virt:
+    name: "{{ vm_name }}"
+    command: destroy
+  when: vm_name in all_instances.list_vms and vm_recreate|bool
 
-- name: Check if Red HAT 7.x cloud-init image exist.
+- name: Check if qcow os image exist.
   stat:
     path: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
-  become: yes
   delegate_to: "{{ kvm_install_host }}"
   register: cloud_init_image_exist
 
-
 - name: Copy cloud-init user data
-  template: "src=user-data.j2 dest={{ cloud_init_user_data }} mode=0777"
-  become: yes
+  template: 
+    src: user-data.j2 
+    dest: "{{ cloud_init_user_data }}"
+    mode: 0777
   delegate_to: "{{ kvm_install_host }}"
-
-- name: Generate cloud-init meta data
-  copy:
-    dest: "{{ cloud_init_meta_data }}"
-    content: |
-      instance-id: {{ vm_name }}
-      hostname: {{ vm_hostname }}
-      local-hostname: {{ vm_local_hostname }}
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: Create root disk based on cloud init img
-  command: "qemu-img create -b {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }} -f qcow2 {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: Create iso image for cloud init
-  shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: Deploy a new VM
-  command: >
-     virt-install --connect qemu:///system --import --name {{ vm_name }} --ram {{ vm_memory }}  --vcpus {{vm_cpu}}
-     --disk {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2,format=qcow2,bus=virtio --disk  {{ cloud_init_iso_image }},device=cdrom --network virtualport_type='openvswitch',source={{ source_bridge }},model=e1000,target={{ vm_name | lower }} --os-type=linux --os-variant=rhel7 --noautoconsole
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: Create External Disk
-  command: >
-     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img bs=1 count=0  seek={{ ext_block_size }}
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: externalstorage
-
-- name: Attach External Disk
-  command: >
-    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live --persistent
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: externalstorage
-
-- name: Create External Disk for glusterFS
-  command: >
-     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img  bs=1 count=0  seek={{ gluster_block_size }}
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: glusterstorage
-
-- name: Attach External Disk  for glusterFS
-  command: >
-    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img vdc --live --persistent
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: glusterstorage
-
-- name: Get MAC address
-  shell: >
-     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  register: mac_info
-
-- name: Gather bridge device name
-  shell: >
-    virsh --connect qemu:///system net-info {{ vm_network_br }}|grep Bridge|awk '{print $2}'
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  register: vm_network_br_dev_name
-
-- name: Gather IP address of the VM
-  shell: |
-     #!/bin/sh
-     for i in {1..5}
-     do
-     ITEM=$(virsh qemu-agent-command   {{ vm_name }} '{"execute":"guest-network-get-interfaces"}' |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -2 | tail -1)
-     if [ -z "${ITEM}" ]; then
-       sleep 30s
-     else
-       echo $ITEM
-       break
-     fi
-     done
-     exit 0
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  register: vm_ip
-
-- name: Save {{ vm_ip }} to file
-  local_action: copy content={{ vm_ip.stdout_lines }} dest={{inventory_dir}}/{{vm_name}}
-
-- name: Enable KVM autostart feature
-  command: >
-     virsh autostart {{ vm_name }}
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: Eject CD-Rom
-  shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-
-
-# - name: Clean up cloud init files
-#   file: state=absent path="{{ item }}"
-#   with_items:
-#   - "{{ cloud_init_user_data }}"
-#   - "{{ cloud_init_iso_image }}"
-#   become: yes
-#   delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Generate cloud-init meta data
+#  copy:
+#    dest: "{{ cloud_init_meta_data }}"
+#    content: |
+#      instance-id: {{ vm_name }}
+#      hostname: {{ vm_hostname }}
+#      local-hostname: {{ vm_local_hostname }}
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Create root disk based on cloud init img
+#  command: "qemu-img create -b {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }} -f qcow2 {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Create iso image for cloud init
+#  shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Deploy a new VM
+#  command: >
+#     virt-install --connect qemu:///system --import --name {{ vm_name }} --ram {{ vm_memory }}  --vcpus {{vm_cpu}}
+#     --disk {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2,format=qcow2,bus=virtio --disk  {{ cloud_init_iso_image }},device=cdrom --network virtualport_type='openvswitch',source={{ source_bridge }},model=e1000,target={{ vm_name | lower }} --os-type=linux --os-variant=rhel7 --noautoconsole
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Create External Disk
+#  command: >
+#     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img bs=1 count=0  seek={{ ext_block_size }}
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  when: externalstorage
+#
+#- name: Attach External Disk
+#  command: >
+#    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live --persistent
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  when: externalstorage
+#
+#- name: Create External Disk for glusterFS
+#  command: >
+#     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img  bs=1 count=0  seek={{ gluster_block_size }}
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  when: glusterstorage
+#
+#- name: Attach External Disk  for glusterFS
+#  command: >
+#    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img vdc --live --persistent
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  when: glusterstorage
+#
+#- name: Get MAC address
+#  shell: >
+#     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  register: mac_info
+#
+#- name: Gather bridge device name
+#  shell: >
+#    virsh --connect qemu:///system net-info {{ vm_network_br }}|grep Bridge|awk '{print $2}'
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  register: vm_network_br_dev_name
+#
+#- name: Gather IP address of the VM
+#  shell: |
+#     #!/bin/sh
+#     for i in {1..5}
+#     do
+#     ITEM=$(virsh qemu-agent-command   {{ vm_name }} '{"execute":"guest-network-get-interfaces"}' |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -2 | tail -1)
+#     if [ -z "${ITEM}" ]; then
+#       sleep 30s
+#     else
+#       echo $ITEM
+#       break
+#     fi
+#     done
+#     exit 0
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  register: vm_ip
+#
+#- name: Save {{ vm_ip }} to file
+#  local_action: copy content={{ vm_ip.stdout_lines }} dest={{inventory_dir}}/{{vm_name}}
+#
+#- name: Enable KVM autostart feature
+#  command: >
+#     virsh autostart {{ vm_name }}
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#- name: Eject CD-Rom
+#  shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#
+#
+#
+## - name: Clean up cloud init files
+##   file: state=absent path="{{ item }}"
+##   with_items:
+##   - "{{ cloud_init_user_data }}"
+##   - "{{ cloud_init_iso_image }}"
+##   become: yes
+##   delegate_to: "{{ kvm_install_host }}"
