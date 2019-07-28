@@ -14,6 +14,7 @@ cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
 
 vm_name: ""
+vm_domain: lab.example
 vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
 vm_hostname: "{{ vm_local_hostname }}"
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
