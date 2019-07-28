@@ -10,16 +10,17 @@ fqdn: {{ vm_hostname }}
 
 {% if rhsm_username is defined or rhsm_org is defined %}
 # RHEl Subscription
-{% if rhsm_username is defined and rhsm_password is defined %}
+{% if rhsm_username != "" and rhsm_password != "" %}
 rh_subscription:
   username: {{ rhsm_username }}
   password: {{ rhsm_password }}
   auto-attach: True
   service-level: self-support
-{% elif rhsm_org is defined and rhsm_activationkey is defined %}
+{% elif rhsm_org != "" and rhsm_activationkey != "" %}
 rh_subscription:
-  username: {{ rhsm_org }}
-  password: {{ rhsm_rhsm_activationkey }}
+  activation-key: {{ rhsm_activationkey }}
+  org: {{ rhsm_org }}
+  auto-attach: True
 {% else %}
 # Skipping rhel subscription
 # rhsm_user and rhsm_password or rhsm_org and rhsm_activationkey not defined
