@@ -12,6 +12,7 @@ cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
 cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
 cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
+vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
 
 vm_name: ""
 vm_domain: lab.example
@@ -21,8 +22,12 @@ vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 vm_cpu: 2
 vm_memory: 2048
 vm_root_disk_size: 20G
-vm_network_br: ovsswitch
+# TODO: remove vm_network_br and source_bridge
+vm_network_br: default
 source_bridge: ovs0
+#TODO: their needs to be a role to prep the kvm host
+libvirt_network: "network=default"
+os_variant: rhel7
 
 #RHEL Subscription Info
 rhsm_username: ""

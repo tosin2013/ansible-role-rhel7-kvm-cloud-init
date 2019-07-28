@@ -31,34 +31,45 @@
     src: user-data.j2 
     dest: "{{ cloud_init_user_data }}"
     mode: 0777
+  register: cloud_intit_user_data
   delegate_to: "{{ kvm_install_host }}"
-#
-#- name: Generate cloud-init meta data
-#  copy:
-#    dest: "{{ cloud_init_meta_data }}"
-#    content: |
-#      instance-id: {{ vm_name }}
-#      hostname: {{ vm_hostname }}
-#      local-hostname: {{ vm_local_hostname }}
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#
+
+- name: Generate cloud-init meta data
+  copy:
+    dest: "{{ cloud_init_meta_data }}"
+    content: |
+      instance-id: {{ vm_name }}
+      hostname: {{ vm_hostname }}
+      local-hostname: {{ vm_local_hostname }}
+  delegate_to: "{{ kvm_install_host }}"
+
 #- name: Create root disk based on cloud init img
-#  command: "qemu-img create -b {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }} -f qcow2 {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
+#  command: "qemu-img create -f qcow2 {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }} {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
 #  become: yes
 #  delegate_to: "{{ kvm_install_host }}"
 #
-#- name: Create iso image for cloud init
-#  shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#
-#- name: Deploy a new VM
-#  command: >
-#     virt-install --connect qemu:///system --import --name {{ vm_name }} --ram {{ vm_memory }}  --vcpus {{vm_cpu}}
-#     --disk {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2,format=qcow2,bus=virtio --disk  {{ cloud_init_iso_image }},device=cdrom --network virtualport_type='openvswitch',source={{ source_bridge }},model=e1000,target={{ vm_name | lower }} --os-type=linux --os-variant=rhel7 --noautoconsole
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
+
+- name: check for existing cloud init iso
+  stat:
+    path: "{{ cloud_init_iso_image }}"
+    get_checksum: no
+    get_md5: no
+    get_mime: no
+    get_attributes: no
+  register: cloud_init_iso
+    
+- name: Create iso image for cloud init
+  shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
+  when: cloud_intit_user_data.changed or cloud_init_iso.stat.exists == False
+  delegate_to: "{{ kvm_install_host }}"
+
+- name: generate virt-install command arguments
+  template: 
+    src: virt-install-cmd.j2
+    dest: "{{ vm_virtinstall_script }}"
+    mode: 0777
+  delegate_to: "{{ kvm_install_host }}"
+
 #
 #- name: Create External Disk
 #  command: >
