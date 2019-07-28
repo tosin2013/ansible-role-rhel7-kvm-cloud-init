@@ -1,11 +1,11 @@
 ---
 # defaults file for ansible-role-rhel7-kvm-cloud-init
 # KVM config
-kvm_vm_pool_dir: "/home/example/kvmimages/"
+kvm_vm_pool_dir: "/var/lib/libvirt/images/"
 kvm_install_host: localhost
 
 # Cloud Init Config
-vm_data_dir: "/home/example/kvmimages/rhel7_machine"
+vm_data_dir: "/var/lib/vmdata"
 vm_recreate: true
 cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
 
