@@ -1,0 +1,7 @@
+virt-install --connect qemu:///system --import --name {{ vm_name }} \
+             --ram {{ vm_memory }} --vcpus {{vm_cpu}} \
+             --disk {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2,format=qcow2,bus=virtio \
+             --disk {{ cloud_init_iso_image }},device=cdrom \
+             --network {{ libvirt_network }} \
+             --os-type=linux --os-variant={{ os_variant }} --noautoconsole
+
