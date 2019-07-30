@@ -1,30 +1,28 @@
 ---
-- name: get a list of all instances
+- name: Get a list of all instances
   virt:
     command: list_vms
   register: all_instances
 
-- name: check if instance exist
-  debug:
-    msg: "{{ all_instances }}"
-  when: vm_name in all_instances.list_vms
+- name: Check if qcow OS image template exist
+  stat:
+    path: "{{ os_qcow_template }}"
+  delegate_to: "{{ kvm_install_host }}"
+  register: cloud_init_image_exist
 
-- name: If vm exist and vm_recreate is false, playbook fails
+- name: Fail play if VM exist and vm_recreate is false
   fail:
     msg: "The vm exist and vm_recreate is false"
   when: vm_name in all_instances.list_vms and not vm_recreate|bool
 
+# TODO: add task to exit if cloud_jnit_image_exist.stat.exists is false
+
+# TODO: verify all disk are also removed
 - name: Undefine existing VM to recreate it
   virt:
     name: "{{ vm_name }}"
     command: destroy
   when: vm_name in all_instances.list_vms and vm_recreate|bool
-
-- name: Check if qcow os image exist.
-  stat:
-    path: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
-  delegate_to: "{{ kvm_install_host }}"
-  register: cloud_init_image_exist
 
 - name: Copy cloud-init user data
   template: 
@@ -43,40 +41,32 @@
       local-hostname: {{ vm_local_hostname }}
   delegate_to: "{{ kvm_install_host }}"
 
-- name: Check if operating system disk already exists
-  stat:
-    path: "{{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2"
-    get_checksum: no
-    get_md5: no
-    get_mime: no
-    get_attributes: no
-  register: os_disk_file
- 
 - name: Create operating system disk for vm
-  command: "qemu-img create -f qcow2 {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
+  command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
+  args:
+    creates: "{{ os_disk }}"
   register: os_disk_results
-  when: os_disk_file.stat.exists == False and vm_name not in all_instances.list_vms
-  changed_when: '"Formatting" in os_disk_results.stdout'
+
+- name: Verify operating system disk for vm exists
+  stat:
+    path: "{{ os_disk }}"
+  delegate_to: "{{ kvm_install_host }}"
+  register: os_disk_created
+
+# TODO: add play to exit if OS disk could not be found
 
 - name: Push base image onto vm operating system disk
   command: >
-    virt-resize --expand /dev/sda1 {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}
-    {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2
+    virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
   register: resize_os_disk_results
-  when: os_disk_file.stat.exists == False and vm_name not in all_instances.list_vms
+  when: os_disk_created.stat.exists
   changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
 
 - name: Grow root file system to size of disk
-  command: "virt-customize -a {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 --run-command 'xfs_growfs /'"
-  when: os_disk_file.stat.exists == False and vm_name not in all_instances.list_vms
+  command: "virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'"
+  when: os_disk_created.stat.exists
   register: grow_os_disk_results
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
-
-#- name: Create root disk based on cloud init img
-#  command: "qemu-img create -f qcow2 {{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }} {{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2 {{ vm_root_disk_size }}"
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#
 
 - name: check for existing cloud init iso
   stat:
@@ -96,38 +86,49 @@
   template: 
     src: virt-install-cmd.j2
     dest: "{{ vm_virtinstall_script }}"
-    mode: 0777
+    mode: 0755
   delegate_to: "{{ kvm_install_host }}"
 
-#
-#- name: Create External Disk
-#  command: >
-#     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img bs=1 count=0  seek={{ ext_block_size }}
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  when: externalstorage
-#
-#- name: Attach External Disk
-#  command: >
-#    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_disk.img vdb --live --persistent
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  when: externalstorage
-#
-#- name: Create External Disk for glusterFS
-#  command: >
-#     dd if=/dev/zero of=/{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img  bs=1 count=0  seek={{ gluster_block_size }}
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  when: glusterstorage
-#
-#- name: Attach External Disk  for glusterFS
-#  command: >
-#    virsh attach-disk {{ vm_name }} /{{ kvm_vm_pool_dir }}/{{ vm_name }}_gluster.img vdc --live --persistent
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  when: glusterstorage
-#
+- name: deploy VM instance
+  command: "{{ vm_virtinstall_script }}"
+  when: vm_name not in all_instances.list_vms
+  register: deploy_vm
+  failed_when: "('Domain installation does not' in deploy_vm.stderr) or
+                ('failed to' in deploy_vm.stderr) or
+                ('ERROR' in deploy_vm.stderr)"
+  changed_when: "'Domain creation completed' in deploy_vm.stdout_lines"
+ 
+- debug:
+    msg: "{{ deploy_vm }}" 
+
+- name: create extra qcow disk
+  vars:
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow"
+    disk_opt: "cluster_size=128K"
+  command: >
+    qemu-img create -f qcow2 -o "{{ disk_opt }}" "{{ disk_name }}" "{{ item.size }}"
+  args:
+    creates: "{{ disk_name }}"
+  loop: "{{ extra_storage }}"
+  loop_control:
+    index_var: count
+    label: "{{ disk_name }}"
+  when: item.enable
+  register: extra_disk_created
+
+- name: Attach External Disk
+  vars:
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow"
+    disk: "vd{{ disk_sequence[item | int + count ] }}"
+  command: >
+    virsh attach-disk {{ vm_name }} {{ disk_name }} {{ disk }} --live --persistent
+  loop: "{{ extra_storage }}"
+  loop_control:
+    index_var: count
+    label: "{{ disk_name }}"
+  when: item.enable
+  delegate_to: "{{ kvm_install_host }}"
+
 #- name: Get MAC address
 #  shell: >
 #     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'

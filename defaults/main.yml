@@ -57,3 +57,22 @@ ext_block_count: 1024
 glusterstorage: false
 gluster_block_size: 1M
 gluster_block_count: 1024
+
+extra_storage:
+  - size: 80G
+    enable: true
+  - size: 50G
+    enable: true
+  - size: 30G
+    enable: true
+  - size: 180G
+    enable: true
+  - size: 20G
+    enable: true
+
+# The below variables should not be changed
+os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2"
+os_qcow_template: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
+extra_disk_name: "{{ kvm_vm_pool_dir }}/{{ vm_name }}"
+disk_sequence: "bcdefghijklmnopqrstuvwxyz"
+
