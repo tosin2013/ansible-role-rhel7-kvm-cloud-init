@@ -13,6 +13,7 @@ cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
 cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
 vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
+vm_provision_vars: "{{ vm_data_dir }}/{{ vm_name }}/provision_vars.yml"
 
 vm_name: ""
 vm_domain: lab.example
@@ -26,7 +27,7 @@ vm_root_disk_size: 20G
 vm_network_br: default
 source_bridge: ovs0
 #TODO: their needs to be a role to prep the kvm host
-libvirt_network: "network=default"
+libvirt_network: "network={{ vm_network_br }}"
 os_variant: rhel7
 
 #RHEL Subscription Info
@@ -38,6 +39,7 @@ rhsm_activationkey: ""
 #default RHEL user and password
 admin_user: admin
 admin_user_password: P@$$w0rd
+kvm_vm_root_pwd: P@$$w0rd
 
 # Manage DNS Resolv.conf
 manage_dns: true
@@ -71,7 +73,7 @@ extra_storage:
     enable: true
 
 # The below variables should not be changed
-os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}.qcow2"
+os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"
 os_qcow_template: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
 extra_disk_name: "{{ kvm_vm_pool_dir }}/{{ vm_name }}"
 disk_sequence: "bcdefghijklmnopqrstuvwxyz"

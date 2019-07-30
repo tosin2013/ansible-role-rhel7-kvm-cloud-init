@@ -70,6 +70,7 @@ ssh_pwauth: True
 chpasswd:
   list: |
     {{ admin_user }}:{{ admin_user_password }}
+    root:{{ kvm_vm_root_pwd }}
   expire: False
 
 # start qemu-guest-agent

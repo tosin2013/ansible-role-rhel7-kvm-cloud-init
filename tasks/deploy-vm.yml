@@ -10,19 +10,20 @@
   delegate_to: "{{ kvm_install_host }}"
   register: cloud_init_image_exist
 
-- name: Fail play if VM exist and vm_recreate is false
-  fail:
-    msg: "The vm exist and vm_recreate is false"
-  when: vm_name in all_instances.list_vms and not vm_recreate|bool
+# TODO: move this entire block to a sepate task file that calls to remove vm
+#- name: Fail play if VM exist and vm_recreate is false
+#  fail:
+#    msg: "The vm exist and vm_recreate is false"
+#  when: vm_name in all_instances.list_vms and not vm_recreate|bool
 
 # TODO: add task to exit if cloud_jnit_image_exist.stat.exists is false
 
 # TODO: verify all disk are also removed
-- name: Undefine existing VM to recreate it
-  virt:
-    name: "{{ vm_name }}"
-    command: destroy
-  when: vm_name in all_instances.list_vms and vm_recreate|bool
+#- name: Undefine existing VM to recreate it
+#  virt:
+#    name: "{{ vm_name }}"
+#    command: destroy
+#  when: vm_name in all_instances.list_vms and vm_recreate|bool
 
 - name: Copy cloud-init user data
   template: 
@@ -46,6 +47,7 @@
   args:
     creates: "{{ os_disk }}"
   register: os_disk_results
+  when: vm_name not in all_instances.list_vms
 
 - name: Verify operating system disk for vm exists
   stat:
@@ -53,20 +55,50 @@
   delegate_to: "{{ kvm_install_host }}"
   register: os_disk_created
 
+- name: get operating system disk virtual size
+  shell: >
+    qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
+    #qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'|grep -o "[0-9]\.[0-9]"
+    #disk="{{ os_disk }}"
+    #R=$(qemu-img info $disk| awk '/disk size/ {print $3}'|grep -o '[0-9]\.[0-9]')
+    #V=$(echo "$R*1024*1024"|bc)
+    #echo ${V%.*}
+    #echo $R
+  register: os_virtual_disk_size
+  changed_when: false
+
+- name: set os disk size to human readable format
+  set_fact:
+    os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes}}"
+
+- debug:
+    msg: "{{ os_disk_size }} {{ os_disk_created.stat.exists }}"    
+
 # TODO: add play to exit if OS disk could not be found
 
 - name: Push base image onto vm operating system disk
   command: >
     virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
   register: resize_os_disk_results
-  when: os_disk_created.stat.exists
   changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
+  when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
 - name: Grow root file system to size of disk
   command: "virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'"
-  when: os_disk_created.stat.exists
   register: grow_os_disk_results
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
+  when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
+
+- debug:
+    msg: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
+
+#- meta: end_play
+
+#- name: Set the root password for the vm and uninstall cloud-init
+#  command: > 
+#    virt-customize -a "{{ os_disk }}" --root-password password:"{{ kvm_vm_root_pwd }}"
+#  register: mod_os_disk_results
+#  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
 
 - name: check for existing cloud init iso
   stat:
@@ -90,13 +122,13 @@
   delegate_to: "{{ kvm_install_host }}"
 
 - name: deploy VM instance
-  command: "{{ vm_virtinstall_script }}"
+  command: "/var/lib/vmdata/{{ vm_name }}/virtinstall.sh"
   when: vm_name not in all_instances.list_vms
   register: deploy_vm
   failed_when: "('Domain installation does not' in deploy_vm.stderr) or
                 ('failed to' in deploy_vm.stderr) or
                 ('ERROR' in deploy_vm.stderr)"
-  changed_when: "'Domain creation completed' in deploy_vm.stdout_lines"
+#  changed_when: "'Domain creation completed' in deploy_vm.stdout_lines"
  
 - debug:
     msg: "{{ deploy_vm }}" 
@@ -126,43 +158,49 @@
   loop_control:
     index_var: count
     label: "{{ disk_name }}"
-  when: item.enable
+  when: item.enable and extra_disk_created.changed
   delegate_to: "{{ kvm_install_host }}"
 
-#- name: Get MAC address
-#  shell: >
-#     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  register: mac_info
-#
-#- name: Gather bridge device name
-#  shell: >
-#    virsh --connect qemu:///system net-info {{ vm_network_br }}|grep Bridge|awk '{print $2}'
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  register: vm_network_br_dev_name
-#
-#- name: Gather IP address of the VM
-#  shell: |
-#     #!/bin/sh
-#     for i in {1..5}
-#     do
-#     ITEM=$(virsh qemu-agent-command   {{ vm_name }} '{"execute":"guest-network-get-interfaces"}' |  grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -2 | tail -1)
-#     if [ -z "${ITEM}" ]; then
-#       sleep 30s
-#     else
-#       echo $ITEM
-#       break
-#     fi
-#     done
-#     exit 0
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#  register: vm_ip
-#
-#- name: Save {{ vm_ip }} to file
-#  local_action: copy content={{ vm_ip.stdout_lines }} dest={{inventory_dir}}/{{vm_name}}
+- name: Get MAC address
+  shell: >
+     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
+  delegate_to: "{{ kvm_install_host }}"
+  register: mac_info
+  changed_when: false
+
+- name: Gather bridge device name
+  shell: >
+    virsh --connect qemu:///system net-info {{ vm_network_br }}|grep Bridge|awk '{print $2}'
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+  register: vm_network_br_dev_name
+  changed_when: false
+
+- name: copy script to KVM host
+  copy:
+    src: files/getvmip 
+    dest: /usr/local/bin/getvmip
+    mode: 755
+    owner: root
+
+- name: Gather IP address of the VM and handle errors
+  block:
+    - name: get VM ip
+      command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+      until: vm_ip.stdout != ""
+      retries: 2
+      delay: 2
+      register: vm_ip
+      changed_when: False
+  rescue:
+    - debug:
+         msg: "could not get ip for a vm"
+
+- name: Save VM network details to file
+  template:
+    src: provision_vars.yml.j2
+    dest: "{{ vm_provision_vars }}"
+  
 #
 #- name: Enable KVM autostart feature
 #  command: >
