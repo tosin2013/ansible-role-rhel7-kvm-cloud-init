@@ -71,6 +71,8 @@ extra_storage:
     enable: true
   - size: 20G
     enable: true
+  - size: 60G
+    enable: true
 
 # The below variables should not be changed
 os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"

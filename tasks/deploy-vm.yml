@@ -7,7 +7,6 @@
 - name: Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
-  delegate_to: "{{ kvm_install_host }}"
   register: cloud_init_image_exist
 
 # TODO: move this entire block to a sepate task file that calls to remove vm
@@ -31,7 +30,6 @@
     dest: "{{ cloud_init_user_data }}"
     mode: 0777
   register: cloud_intit_user_data
-  delegate_to: "{{ kvm_install_host }}"
 
 - name: Generate cloud-init meta data
   copy:
@@ -40,7 +38,6 @@
       instance-id: {{ vm_name }}
       hostname: {{ vm_hostname }}
       local-hostname: {{ vm_local_hostname }}
-  delegate_to: "{{ kvm_install_host }}"
 
 - name: Create operating system disk for vm
   command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
@@ -52,27 +49,18 @@
 - name: Verify operating system disk for vm exists
   stat:
     path: "{{ os_disk }}"
-  delegate_to: "{{ kvm_install_host }}"
   register: os_disk_created
 
 - name: get operating system disk virtual size
   shell: >
     qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
-    #qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'|grep -o "[0-9]\.[0-9]"
-    #disk="{{ os_disk }}"
-    #R=$(qemu-img info $disk| awk '/disk size/ {print $3}'|grep -o '[0-9]\.[0-9]')
-    #V=$(echo "$R*1024*1024"|bc)
-    #echo ${V%.*}
-    #echo $R
   register: os_virtual_disk_size
   changed_when: false
 
 - name: set os disk size to human readable format
   set_fact:
-    os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes}}"
-
-- debug:
-    msg: "{{ os_disk_size }} {{ os_disk_created.stat.exists }}"    
+    os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
+  when: os_disk_created.stat.exists
 
 # TODO: add play to exit if OS disk could not be found
 
@@ -89,49 +77,42 @@
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
-- debug:
-    msg: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
-
-#- meta: end_play
-
-#- name: Set the root password for the vm and uninstall cloud-init
-#  command: > 
-#    virt-customize -a "{{ os_disk }}" --root-password password:"{{ kvm_vm_root_pwd }}"
-#  register: mod_os_disk_results
-#  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
-
 - name: check for existing cloud init iso
   stat:
     path: "{{ cloud_init_iso_image }}"
-    get_checksum: no
-    get_md5: no
-    get_mime: no
-    get_attributes: no
   register: cloud_init_iso
     
 - name: Create iso image for cloud init
   shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
   when: cloud_intit_user_data.changed or cloud_init_iso.stat.exists == False
-  delegate_to: "{{ kvm_install_host }}"
 
 - name: generate virt-install command arguments
   template: 
     src: virt-install-cmd.j2
     dest: "{{ vm_virtinstall_script }}"
     mode: 0755
-  delegate_to: "{{ kvm_install_host }}"
 
 - name: deploy VM instance
-  command: "/var/lib/vmdata/{{ vm_name }}/virtinstall.sh"
+  #command: "/var/lib/vmdata/{{ vm_name }}/virtinstall.sh"
+  command: "{{ vm_virtinstall_script }}"
   when: vm_name not in all_instances.list_vms
   register: deploy_vm
   failed_when: "('Domain installation does not' in deploy_vm.stderr) or
                 ('failed to' in deploy_vm.stderr) or
                 ('ERROR' in deploy_vm.stderr)"
-#  changed_when: "'Domain creation completed' in deploy_vm.stdout_lines"
- 
 - debug:
-    msg: "{{ deploy_vm }}" 
+    msg: "{{ deploy_vm }}"
+    verbosity: 2
+
+- name: copy script to KVM host
+  copy:
+    src: "files/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: 755
+    owner: root
+  with_items:
+    - getvmip
+    - attach-libvirt-disk
 
 - name: create extra qcow disk
   vars:
@@ -148,18 +129,27 @@
   when: item.enable
   register: extra_disk_created
 
+- debug:
+    msg: "{{ extra_disk_created }}"
+    verbosity: 2
+
 - name: Attach External Disk
   vars:
     disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow"
     disk: "vd{{ disk_sequence[item | int + count ] }}"
   command: >
-    virsh attach-disk {{ vm_name }} {{ disk_name }} {{ disk }} --live --persistent
+    /usr/local/bin/attach-libvirt-disk "{{ vm_name }}" "{{ disk_name }}" "{{ disk }}"
+#   virsh dumpxml "{{ vm_name }}" | grep -o "{{ disk }}" ||\
+#   virsh attach-disk {{ vm_name }} {{ disk_name }} {{ disk }} --live --persistent
+  register: attached_disk
   loop: "{{ extra_storage }}"
   loop_control:
     index_var: count
     label: "{{ disk_name }}"
-  when: item.enable and extra_disk_created.changed
-  delegate_to: "{{ kvm_install_host }}"
+  when: item.enable
+  changed_when: '"Disk attached successfully" in attached_disk.stdout'
+
+- meta: end_play
 
 - name: Get MAC address
   shell: >
@@ -176,12 +166,6 @@
   register: vm_network_br_dev_name
   changed_when: false
 
-- name: copy script to KVM host
-  copy:
-    src: files/getvmip 
-    dest: /usr/local/bin/getvmip
-    mode: 755
-    owner: root
 
 - name: Gather IP address of the VM and handle errors
   block:
@@ -209,5 +193,5 @@
 
 - name: Eject CD-Rom
   shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
-  when: "'Domain creation completed' in deploy_vm.stdout_lines"
+  when: vm_name not in all_instances.list_vms
 
