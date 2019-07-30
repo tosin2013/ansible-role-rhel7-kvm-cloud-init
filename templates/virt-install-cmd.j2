@@ -5,6 +5,7 @@ virt-install --connect qemu:///system --import --name {{ vm_name }} \
              --disk {{ os_disk }},format=qcow2,bus=virtio \
              --disk {{ cloud_init_iso_image }},device=cdrom \
              --network {{ libvirt_network }} \
+             --autostart \
              --os-type=linux --os-variant={{ os_variant }} --noautoconsole
 
 exit 0

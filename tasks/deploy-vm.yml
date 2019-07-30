@@ -194,31 +194,23 @@
       changed_when: False
   rescue:
     - debug:
-         msg: "could not get ip for a vm"
+        msg: "could not get ip for a vm"
 
 - name: Save VM network details to file
   template:
     src: provision_vars.yml.j2
     dest: "{{ vm_provision_vars }}"
-  
-#
-#- name: Enable KVM autostart feature
-#  command: >
-#     virsh autostart {{ vm_name }}
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#
-#- name: Eject CD-Rom
-#  shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
-#  become: yes
-#  delegate_to: "{{ kvm_install_host }}"
-#
-#
-#
-## - name: Clean up cloud init files
-##   file: state=absent path="{{ item }}"
-##   with_items:
-##   - "{{ cloud_init_user_data }}"
-##   - "{{ cloud_init_iso_image }}"
-##   become: yes
-##   delegate_to: "{{ kvm_install_host }}"
+
+#- name: check if CD-ROM is still mounted
+#  shell: >
+#    virsh dumpxml "{{ vm_name }}"| grep "{{ cloud_init_iso_image }}"
+#  register: cd_rom
+#  changed_when: False
+
+- debug:
+    msg: "{{ cd_rom }}"
+
+- name: Eject CD-Rom
+  shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
+  when: "'Domain creation completed' in deploy_vm.stdout_lines"
+
