@@ -188,8 +188,8 @@
     - name: get VM ip
       command: "/usr/local/bin/getvmip -r {{ vm_name }}"
       until: vm_ip.stdout != ""
-      retries: 2
-      delay: 2
+      retries: 10
+      delay: 1
       register: vm_ip
       changed_when: False
   rescue:
@@ -206,9 +206,6 @@
 #    virsh dumpxml "{{ vm_name }}"| grep "{{ cloud_init_iso_image }}"
 #  register: cd_rom
 #  changed_when: False
-
-- debug:
-    msg: "{{ cd_rom }}"
 
 - name: Eject CD-Rom
   shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
