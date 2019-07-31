@@ -139,8 +139,6 @@
     disk: "vd{{ disk_sequence[item | int + count ] }}"
   command: >
     /usr/local/bin/attach-libvirt-disk "{{ vm_name }}" "{{ disk_name }}" "{{ disk }}"
-#   virsh dumpxml "{{ vm_name }}" | grep -o "{{ disk }}" ||\
-#   virsh attach-disk {{ vm_name }} {{ disk_name }} {{ disk }} --live --persistent
   register: attached_disk
   loop: "{{ extra_storage }}"
   loop_control:
@@ -149,7 +147,7 @@
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
 
-- meta: end_play
+#- meta: end_play
 
 - name: Get MAC address
   shell: >
@@ -185,13 +183,13 @@
     src: provision_vars.yml.j2
     dest: "{{ vm_provision_vars }}"
 
-#- name: check if CD-ROM is still mounted
-#  shell: >
-#    virsh dumpxml "{{ vm_name }}"| grep "{{ cloud_init_iso_image }}"
-#  register: cd_rom
-#  changed_when: False
+- name: Check if cd-rom is attached
+  shell: >
+    virsh domblklist "{{ vm_name }}" | grep "{{ cidata_iso_name }}"|cat
+  register: check_cdrom
+  changed_when: false
 
 - name: Eject CD-Rom
-  shell: "virsh --connect qemu:///system change-media {{ vm_name }} hda --eject --config"
-  when: vm_name not in all_instances.list_vms
+  shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
+  when: check_cdrom.stdout != ""
 
