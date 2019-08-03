@@ -55,6 +55,7 @@ search_domains: ["{{ vm_domain }}"]
 externalstorage: false
 ext_block_size:  1M
 ext_block_count: 1024
+disk_opt: "cluster_size=128K"
 
 # GlusterFS storage Options can be  used with OpenShift deployments
 glusterstorage: false
@@ -63,17 +64,9 @@ gluster_block_count: 1024
 
 extra_storage:
   - size: 80G
-    enable: true
+    enable: false
   - size: 50G
-    enable: true
-  - size: 30G
-    enable: true
-  - size: 180G
-    enable: true
-  - size: 20G
-    enable: true
-  - size: 60G
-    enable: true
+    enable: false
 
 # The below variables should not be changed
 os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"

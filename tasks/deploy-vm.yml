@@ -147,8 +147,7 @@
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
 
-#- meta: end_play
-
+# TODO: move the mac and bridge device task to the getvmip script
 - name: Get MAC address
   shell: >
      virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
