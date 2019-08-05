@@ -64,11 +64,11 @@
   changed_when: '"Finishing off" in mod_os_disk_results.stdout'
   when: grow_os_disk_results.changed
 
-- name: Save resolv.conf to local filesystem
-  template:
-    src: resolv.conf.j2
-    dest: "{{ vm_resolv_conf }}"
-  when: grow_os_disk_results.changed
+#- name: Save resolv.conf to local filesystem
+#  template:
+#    src: resolv.conf.j2
+#    dest: "{{ vm_resolv_conf }}"
+#  when: grow_os_disk_results.changed
 
 - name: Copy resolv conf file into vm operating disk
   command: >
