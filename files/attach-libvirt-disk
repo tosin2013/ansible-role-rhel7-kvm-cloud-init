@@ -1,0 +1,14 @@
+#!/bin/bash
+
+VM_NAME=$1
+VM_DISK=$2
+DISK=$3
+
+
+RESULT=$(virsh dumpxml "${VM_NAME}" | grep -o "${VM_DISK}")
+if [ "A${RESULT}" == "A" ] && [ -f "${VM_DISK}" ]; then
+    virsh attach-disk "${VM_NAME}" "${VM_DISK}" "${DISK}" --live --persistent
+echo "No change"
+fi
+
+exit 0

@@ -1,51 +1,66 @@
 ---
 # defaults file for ansible-role-rhel7-kvm-cloud-init
 # KVM config
-kvm_vm_pool_dir: "/home/example/kvmimages/"
+kvm_vm_pool_dir: "/var/lib/libvirt/images/"
 kvm_install_host: localhost
 
 # Cloud Init Config
-vm_data_dir: "/home/example/kvmimages/rhel7_machine"
-vm_recreate: true
 cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
-
 cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
 cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
-cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/cidata.iso"
+cidata_iso_name: cidata.iso
+cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
 
-vm_name: rhel7_machine
-vm_local_hostname: rhel.example.com
-vm_hostname: rhel.example.com
+
+# VM instnaces
+vm_name: ""
+vm_domain: lab.example
+vm_recreate: false
+vm_teardown: false
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 vm_cpu: 2
 vm_memory: 2048
 vm_root_disk_size: 20G
-vm_network_br: ovsswitch
-source_bridge: ovs0
+vm_libvirt_net: default
+os_variant: rhel7
+vm_data_dir: "/var/lib/vmdata"
+
+vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
+vm_provision_vars: "{{ vm_data_dir }}/{{ vm_name }}/provision_vars.yml"
+vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
+vm_hostname: "{{ vm_local_hostname }}"
+vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
+update_inventory: false
+inventory_file: ""
 
 #RHEL Subscription Info
-rhel_username: rh_username
-rhel_password: password
+rhsm_username: ""
+rhsm_password: ""
+rhsm_org: ""
+rhsm_activationkey: ""
 
 #default RHEL user and password
-rhel_user: rhel_user
-rhel_user_password: rhel_user_password
+admin_user: admin
+admin_user_password: ""
+kvm_vm_root_pwd: ""
 
 # Manage DNS Resolv.conf
-manage_resolv_conf: false
-dns_servers: "[]" # googles ['8.8.8.8','8.8.4.4']
-search_domain:
+manage_dns: true
+dns_servers: ['8.8.8.8','8.8.4.4']
+search_domains: ["{{ vm_domain }}"]
 
-# Storage Options 
-# block_size "bs" is the block size that will be used to read and/ or write the file. Increasing this can help with performance  or dictate how much data will be read or written.
-# count is the number of blocks that will be used.
-# normal External storage Options could be used for containers 
+# Storage Options
+disk_opt: "cluster_size=128K"
+extra_storage:
+  - size: 80G
+    enable: false
+  - size: 50G
+    enable: false
 
-externalstorage: false
-ext_block_size:  1M
-ext_block_count: 1024
+# The below variables should not be changed
+os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"
+os_qcow_template: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
+extra_disk_name: "{{ kvm_vm_pool_dir }}/{{ vm_name }}"
+disk_sequence: "bcdefghijklmnopqrstuvwxyz"
+vm_resolv_conf: "{{ vm_data_dir }}/{{ vm_name }}/resolv.conf"
 
-# GlusterFS storage Options can be  used with OpenShift deployments
-glusterstorage: false
-gluster_block_size: 1M
-gluster_block_count: 1024

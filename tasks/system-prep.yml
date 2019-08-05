@@ -1,19 +1,40 @@
 ---
 
-- name: Add Known host
-  shell: "ssh-keyscan -t rsa {{ vm_ip.stdout }}  >> ~/.ssh/known_hosts"
-  delegate_to: localhost
-  ignore_errors: yes
-  register: add_known_host
-  until: "add_known_host is succeeded and not add_known_host.stderr.find('refused') != -1"
-  retries: 180
-  delay: 5
+- name: scan remote for keys
+  shell: |
+      ssh-keyscan -H {{ vm_name }} \
+                  {{ vm_ip.stdout }} \
+                  {{ lookup('dig', vm_name ) }} | sort -u
+  register: host_keys
+  changed_when: false
 
-- name: Remove MAC from eth0
-  shell: "ssh -o StrictHostKeyChecking=no {{ rhel_user }}@{{ vm_ip.stdout }} -- sudo sed '/HWADDR/d'  -i /etc/sysconfig/network-scripts/ifcfg-eth0"
+- name: Update "~/.ssh/known_hosts" with discovered keys
+  known_hosts:
+    state: present
+    name: "{{ item }}"
+    key: "{{ host_keys.stdout_lines | select('search','^'~item~' .*$') | join('\n') }}"
+  loop:
+    - "{{ vm_name }}"
+    - "{{ vm_ip.stdout }}"
+    - "{{ lookup('dig', vm_name ) }}"
   delegate_to: localhost
-  ignore_errors: yes
-  register: remove_mac
-  until: remove_mac is succeeded
-  retries: 180
-  delay: 5
+
+#- name: Add Known host
+#  shell: "ssh-keyscan -t rsa {{ vm_ip.stdout }}  >> ~/.ssh/known_hosts"
+#  delegate_to: localhost
+#  ignore_errors: yes
+#  register: add_known_host
+#  until: "add_known_host is succeeded and not add_known_host.stderr.find('refused') != -1"
+#  retries: 60
+#  delay: 2
+#  when: vm_ip.stdout != ""
+#
+#- name: Remove MAC from eth0
+#  shell: "ssh -o StrictHostKeyChecking=no {{ admin_user }}@{{ vm_ip.stdout }} -- sudo sed '/HWADDR/d'  -i /etc/sysconfig/network-scripts/ifcfg-eth0"
+#  delegate_to: localhost
+#  ignore_errors: yes
+#  register: remove_mac
+#  until: remove_mac is succeeded
+#  retries: 180
+#  delay: 5
+#  when: vm_ip.stdout != ""

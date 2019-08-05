@@ -8,17 +8,31 @@ preserve_hostname: False
 hostname: {{ vm_local_hostname }}
 fqdn: {{ vm_hostname }}
 
-# RHEl Subscription Auto-attach
+{% if rhsm_username is defined or rhsm_org is defined %}
+# RHEl Subscription
+{% if rhsm_username != "" and rhsm_password != "" %}
 rh_subscription:
-  username: {{ rhel_username }}
-  password: {{ rhel_password }}
+  username: {{ rhsm_username }}
+  password: {{ rhsm_password }}
   auto-attach: True
   service-level: self-support
+{% elif rhsm_org != "" and rhsm_activationkey != "" %}
+rh_subscription:
+  activation-key: {{ rhsm_activationkey }}
+  org: {{ rhsm_org }}
+  auto-attach: True
+{% else %}
+# Skipping rhel subscription
+# rhsm_user and rhsm_password or rhsm_org and rhsm_activationkey not defined
+{% endif %}
+{% else %}
+# Skipping rhel subscription
+{% endif %}
+
 
 # Default Packages
 packages:
   - wget
-  - git
   - net-tools
   - bind-utils
   - yum-utils
@@ -28,40 +42,35 @@ packages:
   - kexec-tools
   - sos
   - psacct
-  - ansible
   - pyOpenSSL
   - qemu-guest-agent
-
-# Groups
-groups:
-  - docker
 
 # Users
 users:
   - default
-  - name: {{ rhel_user }}
+  - name: {{ admin_user }}
     ssh_pwauth: True
     ssh_authorized_keys:
     - {{ vm_public_key }}
     groups: wheel,adm,systemd-journal
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
 
-manage_resolv_conf: {{ manage_dns }}
-
-resolv_conf:
-  nameservers: {{ dns_servers }}
-  searchdomains:
-    - {{ search_domain }}
-  domain:  {{ search_domain }}
-  options:
-    rotate: true
-    timeout: 1
+#manage_resolv_conf: {{ manage_dns }}
+#
+#resolv_conf:
+#  nameservers: {{ dns_servers }}
+#  searchdomains: {{ search_domains }}
+#  domain:  {{ vm_domain }}
+#  options:
+#    rotate: true
+#    timeout: 1
 
 # Change password (Reference Only)
 ssh_pwauth: True
 chpasswd:
   list: |
-    {{ rhel_user }}:{{ rhel_user_password }}
+    {{ admin_user }}:{{ admin_user_password }}
+    root:{{ kvm_vm_root_pwd }}
   expire: False
 
 # start qemu-guest-agent
@@ -89,3 +98,4 @@ ssh_genkeytypes: ['rsa', 'ecdsa']
 # in cloud.cfg in the template (which is ctos for CentOS cloud images)
 ssh_authorized_keys:
   - {{ vm_public_key }}
+

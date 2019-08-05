@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+{% if search_domains | length > 0 %}
+search {{ search_domains|join(' ') }}
+{% endif %}
+{% if vm_domain != "" %}
+domain {{ vm_domain }}
+{% endif %}
+{% for ns in dns_servers %}
+nameserver {{ ns }}
+{% endfor %}
+options rotate timeout:1
