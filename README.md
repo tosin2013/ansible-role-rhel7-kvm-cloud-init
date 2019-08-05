@@ -61,11 +61,34 @@ A list of other roles hosted on Galaxy should go here, plus any details in regar
 Example Playbook
 ----------------
 ```
----
 - hosts: localhost
-  remote_user: root
-  roles:
-    - ansible-role-rhel7-kvm-cloud-init
+  tags: provision
+  vars:
+    update_inventory: true
+    inventory_file: /inventory/instances/localhost
+    kvm_vm_pool_dir: "/var/lib/libvirt/images"
+    kvm_install_host: localhost
+    vm_recreate: false
+    vm_teardown: false
+    cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
+    vm_name: test0073
+    vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+    vm_cpu: 2
+    vm_memory: 2048
+    vm_root_disk_size: 20G
+    vm_libvirt_net: default
+    rhsm_org: "7828949"
+    rhsm_activationkey: "act-os-rhel-7Server"
+    admin_user_password: mypassword
+    extra_storage:
+      - size: 80G
+        enable: true
+      - size: 50G
+        enable: true
+  tasks:
+    - name: Create KVM VM
+      include_role:
+        name: ansible-role-rhel7-kvm-cloud-init
 ```
 
 License
