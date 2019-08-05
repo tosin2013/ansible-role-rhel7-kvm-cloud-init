@@ -30,6 +30,8 @@ source_bridge: ovs0
 #TODO: their needs to be a role to prep the kvm host
 libvirt_network: "network={{ vm_network_br }}"
 os_variant: rhel7
+update_inventory: false
+inventory_file: ""
 
 #RHEL Subscription Info
 rhsm_username: ""
