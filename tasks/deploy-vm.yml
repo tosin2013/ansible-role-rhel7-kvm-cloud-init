@@ -197,10 +197,5 @@
     path: "{{ inventory_file }}"
     line: "{{ vm_name }}          ansible_host={{ item.stdout }}"
     state: present
-  loop: "{{ vm_ip.results }}"
-  loop_control:
-    loop_label: "Adding {{ vm_name }} to inventory"
   register: update_inventory
   when: update_inventory
-  
-
