@@ -77,6 +77,17 @@
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
+- name: Save resolv.conf to local filesystem
+  template:
+    src: resolv.conf.j2
+    dest: "{{ vm_resolv_conf }}"
+
+- name: Copy ifcfg files into vm operating disk
+  command: >
+    virt-copy-in -a {{ os_disk }}
+    {{ vm_resolv_conf }} /etc/
+  changed_when: false
+
 - name: check for existing cloud init iso
   stat:
     path: "{{ cloud_init_iso_image }}"
@@ -162,7 +173,6 @@
   delegate_to: "{{ kvm_install_host }}"
   register: vm_libvirt_net_dev_name
   changed_when: false
-
 
 - name: Gather IP address of the VM and handle errors
   block:

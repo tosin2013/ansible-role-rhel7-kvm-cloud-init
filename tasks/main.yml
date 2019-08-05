@@ -1,5 +1,9 @@
 ---
 # tasks file for ansible-role-rhel7-kvm-cloud-init
+- name: Teardown the VM
+  import_tasks: teardown-vm.yml
+  when: vm_recreate or vm_teardown
+
 - name: Create VM data dir where store vm information
   file: 
     state: directory
@@ -7,13 +11,16 @@
     force: yes
   become: yes
   delegate_to: "{{ kvm_install_host }}"
+  when: not vm_teardown
 
 - name: Deploy Base VM
   import_tasks: deploy-vm.yml
+  when: not vm_teardown
 
-#- name: System Prep for Clone
-#  import_tasks: system-prep.yml
-#
+- name: System Prep for Clone
+  import_tasks: system-prep.yml
+  when: not vm_teardown
+
 ## TEST
 #- name: VM is running
 #  shell: "virsh -c qemu:///system list | grep {{ vm_name }} | grep running | wc -l"

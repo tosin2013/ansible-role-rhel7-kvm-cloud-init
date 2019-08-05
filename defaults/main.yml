@@ -16,6 +16,7 @@ cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
 vm_name: ""
 vm_domain: lab.example
 vm_recreate: false
+vm_teardown: false
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 vm_cpu: 2
 vm_memory: 2048
@@ -61,4 +62,5 @@ os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"
 os_qcow_template: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"
 extra_disk_name: "{{ kvm_vm_pool_dir }}/{{ vm_name }}"
 disk_sequence: "bcdefghijklmnopqrstuvwxyz"
+vm_resolv_conf: "{{ vm_data_dir }}/{{ vm_name }}/resolv.conf"
 
