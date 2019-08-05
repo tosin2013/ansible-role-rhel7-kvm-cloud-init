@@ -27,15 +27,5 @@
   import_tasks: system-prep.yml
   when: not vm_teardown
 
-## TEST
-#- name: VM is running
-#  shell: "virsh -c qemu:///system list | grep {{ vm_name }} | grep running | wc -l"
-#  delegate_to: "{{ kvm_install_host }}"
-#  register: vm_state
-#  failed_when: vm_state.stdout != '1'
-#
-#- name: Check VM access
-#  shell: "ping -c 1 {{ vm_ip.stdout }}"
-#  delegate_to: "{{ kvm_install_host }}"
-#  register: vm_access
-#  failed_when: vm_access.rc == 1
+- name: run post configuration
+  import_tasks: post-config.yml

@@ -1,0 +1,31 @@
+---
+- name: Destroy vm
+  command: "virsh destroy {{ vm_name }}"
+  register: virsh_destroy_results
+  changed_when: '"destroyed" in virsh_destroy_results.stdout'
+  ignore_errors: true
+  when: vm_name in all_instances.list_vms
+
+- name: Undefine vm
+  command: "virsh undefine {{ vm_name }}"
+  register: virsh_undefine_results
+  changed_when: '"undefined" in virsh_undefine_results.stdout'
+  when: vm_name in all_instances.list_vms
+
+- name: remove vm data directory
+  file:
+    path: "{{ vm_data_dir }}/{{ vm_name }}"
+    state: absent
+
+- name: find all disk for the vm
+  find:
+    paths: "{{ kvm_vm_pool_dir}}"
+    patterns: "{{ vm_name }}_vd*.*"
+  register: vm_disks_all
+
+- name: delete all vm disks
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ vm_disks_all.files }}"
+  when: vm_disks_all.matched != 0

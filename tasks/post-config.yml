@@ -1,0 +1,42 @@
+---
+- name: update inventory
+  lineinfile:
+    path: "{{ inventory_file }}"
+    line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
+    state: present
+  register: update_inventory
+  when: update_inventory and vm_ip.stdout is defined
+
+- name: refresh local static inventory
+  meta: refresh_inventory
+
+- name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
+  template:
+    src: ifcfg.j2
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: ensure network manager is set not to update /etc/resolv
+  lineinfile:
+    path: /etc/NetworkManager/NetworkManager.conf
+    line: dns=none
+    insertafter: '^\[main\]'
+    state: present 
+  register: update_nmconf
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: update /etc/resolv.conf
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+  when: vm_ip.stdout is defined and vm_ip.stdout != "" and grow_os_disk_results.changed
+  delegate_to: "{{ vm_name }}"
+
+- name: ensure cloud-init is removed
+  yum:
+    name: cloud-init
+    state: absent
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""

@@ -17,7 +17,8 @@
     - "{{ vm_name }}"
     - "{{ vm_ip.stdout }}"
     - "{{ lookup('dig', vm_name ) }}"
-  delegate_to: localhost
+  ignore_errors: True
+#  delegate_to: localhost
 
 #- name: Add Known host
 #  shell: "ssh-keyscan -t rsa {{ vm_ip.stdout }}  >> ~/.ssh/known_hosts"
