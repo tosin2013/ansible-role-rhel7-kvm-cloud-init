@@ -1,0 +1,26 @@
+---
+- name: update inventory
+  lineinfile:
+    path: "{{ inventory_file }}"
+    line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
+    state: present
+  register: update_inventory
+#  when: update_inventory
+
+- name: refresh local static inventory
+  meta: refresh_inventory
+
+- name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
+  template:
+    src: ifcfg.j2
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout != ""
+  #when: vm_ip.stdout != "" and update_inventory.changed
+
+- name: ensure cloud-init is removed
+  yum:
+    name: cloud-init
+    state: absent
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout != ""

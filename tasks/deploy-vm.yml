@@ -158,7 +158,6 @@
 - name: Gather bridge device name
   shell: >
     virsh --connect qemu:///system net-info {{ vm_libvirt_net }}|grep Bridge|awk '{print $2}'
-  become: yes
   delegate_to: "{{ kvm_install_host }}"
   register: vm_libvirt_net_dev_name
   changed_when: false
@@ -176,10 +175,26 @@
     - debug:
         msg: "could not get ip for a vm"
 
-- name: Save VM network details to file
-  template:
-    src: provision_vars.yml.j2
-    dest: "{{ vm_provision_vars }}"
+- name: Get VM Netmask prefix
+  shell: |
+    /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
+  register: vm_netmask_prefix
+  when: vm_ip.stdout != ""
+  changed_when: False
+
+- name: Get VM nic device
+  shell: |
+    /usr/local/bin/getvmip -a| awk '/{{ vm_name }}/ {print $3}'
+  register: vm_nic
+  when: vm_ip.stdout != ""
+  changed_when: False
+
+#- name: Copy ifcfg-{{ vm_nic.stdout }} to VM
+#  command: >
+#    virt-copy-in -a {{ os_disk }}
+#    {{ vm_ifcfg_file }} /etc/sysconfig/network-scripts/
+#  changed_when: false
+#  when: grow_os_disk_results.changed
 
 - name: Check if cd-rom is attached
   shell: >
@@ -191,10 +206,29 @@
   shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
   when: check_cdrom.stdout != ""
 
-- name: update inventory
-  lineinfile:
-    path: "{{ inventory_file }}"
-    line: "{{ vm_name }}          ansible_host={{ item.stdout }}"
-    state: present
-  register: update_inventory
-  when: update_inventory
+#- name: update inventory
+#  lineinfile:
+#    path: "{{ inventory_file }}"
+#    line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
+#    state: present
+#  register: update_inventory
+##  when: update_inventory
+#
+#- name: refresh local static inventory
+#  meta: refresh_inventory
+#
+#- name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
+#  template:
+#    src: ifcfg.j2
+#    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
+#  delegate_to: "{{ vm_name }}"
+#  when: vm_ip.stdout != ""
+#  #when: vm_ip.stdout != "" and update_inventory.changed
+#
+#- name: ensure cloud-init is removed
+#  yum:
+#    name: cloud-init
+#    state: absent
+#  delegate_to: "{{ vm_name }}"
+#  when: vm_ip.stdout != ""
+#  

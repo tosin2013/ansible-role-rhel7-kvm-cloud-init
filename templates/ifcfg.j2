@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+BOOTPROTO=none
+DEVICE={{ vm_nic.stdout }}
+HWADDR={{ mac_info.stdout }}
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+IPADDR={{ vm_ip.stdout }}
+PREFIX={{ vm_netmask_prefix.stdout }}
