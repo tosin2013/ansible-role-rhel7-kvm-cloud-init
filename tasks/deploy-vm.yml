@@ -1,28 +1,8 @@
 ---
-- name: Get a list of all instances
-  virt:
-    command: list_vms
-  register: all_instances
-
 - name: Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
   register: cloud_init_image_exist
-
-# TODO: move this entire block to a sepate task file that calls to remove vm
-#- name: Fail play if VM exist and vm_recreate is false
-#  fail:
-#    msg: "The vm exist and vm_recreate is false"
-#  when: vm_name in all_instances.list_vms and not vm_recreate|bool
-
-# TODO: add task to exit if cloud_jnit_image_exist.stat.exists is false
-
-# TODO: verify all disk are also removed
-#- name: Undefine existing VM to recreate it
-#  virt:
-#    name: "{{ vm_name }}"
-#    command: destroy
-#  when: vm_name in all_instances.list_vms and vm_recreate|bool
 
 - name: Copy cloud-init user data
   template: 
@@ -77,16 +57,25 @@
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
+- name: Set the root password for the vm
+  command: > 
+    virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
+  register: mod_os_disk_results
+  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
+  when: grow_os_disk_results.changed
+
 - name: Save resolv.conf to local filesystem
   template:
     src: resolv.conf.j2
     dest: "{{ vm_resolv_conf }}"
+  when: grow_os_disk_results.changed
 
-- name: Copy ifcfg files into vm operating disk
+- name: Copy resolv conf file into vm operating disk
   command: >
     virt-copy-in -a {{ os_disk }}
     {{ vm_resolv_conf }} /etc/
   changed_when: false
+  when: grow_os_disk_results.changed
 
 - name: check for existing cloud init iso
   stat:
@@ -127,7 +116,7 @@
 
 - name: create extra qcow disk
   vars:
-    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow"
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
     disk_opt: "cluster_size=128K"
   command: >
     qemu-img create -f qcow2 -o "{{ disk_opt }}" "{{ disk_name }}" "{{ item.size }}"
@@ -146,7 +135,7 @@
 
 - name: Attach External Disk
   vars:
-    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow"
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
     disk: "vd{{ disk_sequence[item | int + count ] }}"
   command: >
     /usr/local/bin/attach-libvirt-disk "{{ vm_name }}" "{{ disk_name }}" "{{ disk }}"
@@ -179,7 +168,7 @@
     - name: get VM ip
       command: "/usr/local/bin/getvmip -r {{ vm_name }}"
       until: vm_ip.stdout != ""
-      retries: 10
+      retries: 30
       delay: 1
       register: vm_ip
       changed_when: False
