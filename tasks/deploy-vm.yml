@@ -157,10 +157,10 @@
 
 - name: Gather bridge device name
   shell: >
-    virsh --connect qemu:///system net-info {{ vm_network_br }}|grep Bridge|awk '{print $2}'
+    virsh --connect qemu:///system net-info {{ vm_libvirt_net }}|grep Bridge|awk '{print $2}'
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  register: vm_network_br_dev_name
+  register: vm_libvirt_net_dev_name
   changed_when: false
 
 
