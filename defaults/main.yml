@@ -45,9 +45,12 @@ admin_user_password: ""
 kvm_vm_root_pwd: ""
 
 # Manage DNS Resolv.conf
-manage_dns: true
-dns_servers: ['8.8.8.8','8.8.4.4']
-search_domains: ["{{ vm_domain }}"]
+manage_dns: true  # sets cloud-init to setup DNS
+dns_servers:
+  - 1.1.1.1
+  - 8.8.8.8
+search_domains: 
+  - "{{ vm_domain }}"
 
 # Storage Options
 disk_opt: "cluster_size=128K"

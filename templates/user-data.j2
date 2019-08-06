@@ -55,15 +55,16 @@ users:
     groups: wheel,adm,systemd-journal
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
 
-#manage_resolv_conf: {{ manage_dns }}
-#
-#resolv_conf:
-#  nameservers: {{ dns_servers }}
-#  searchdomains: {{ search_domains }}
-#  domain:  {{ vm_domain }}
-#  options:
-#    rotate: true
-#    timeout: 1
+manage_resolv_conf: true
+
+resolv_conf:
+  nameservers: ['{{ dns_servers[0] }}', '{{ dns_servers[1] }}']
+  searchdomains: 
+    - {{ search_domains[0] }}
+  domain:  {{ vm_domain }}
+  options:
+    rotate: true
+    timeout: 1
 
 # Change password (Reference Only)
 ssh_pwauth: True
