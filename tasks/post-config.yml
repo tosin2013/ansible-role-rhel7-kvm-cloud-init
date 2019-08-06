@@ -27,16 +27,22 @@
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
-- name: update /etc/resolv.conf
-  template:
-    src: resolv.conf.j2
-    dest: /etc/resolv.conf
-  when: vm_ip.stdout is defined and vm_ip.stdout != "" and grow_os_disk_results.changed
-  delegate_to: "{{ vm_name }}"
-
 - name: ensure cloud-init is removed
   yum:
     name: cloud-init
     state: absent
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: reboot server
+  reboot:
+    reboot_timeout: 800
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: update /etc/resolv.conf
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+  when: vm_ip.stdout is defined and vm_ip.stdout != "" and grow_os_disk_results.changed
+  delegate_to: "{{ vm_name }}"
