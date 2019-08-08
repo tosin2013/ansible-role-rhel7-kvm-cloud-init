@@ -32,6 +32,7 @@ vm_hostname: "{{ vm_local_hostname }}"
 vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
 update_inventory: false
 inventory_file: ""
+inventory_group: ""
 
 #RHEL Subscription Info
 rhsm_username: ""

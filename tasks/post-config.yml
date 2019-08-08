@@ -4,6 +4,7 @@
     path: "{{ inventory_file }}"
     line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
     regexp: "^{{ vm_name }}.*"
+    insertafter: "'^\\[{{ inventory_group }}\\]'"
     state: present
   register: update_inventory
   when: update_inventory and vm_ip.stdout is defined
