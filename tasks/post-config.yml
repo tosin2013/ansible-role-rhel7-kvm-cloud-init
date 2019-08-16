@@ -3,12 +3,22 @@
   lineinfile:
     path: "{{ inventory_file }}"
     line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
+    regexp: "^{{ vm_name }}.*"
+    insertafter: "'^\\[{{ inventory_group }}\\]'"
     state: present
   register: update_inventory
   when: update_inventory and vm_ip.stdout is defined
 
 - name: refresh local static inventory
   meta: refresh_inventory
+
+- name: get vm gateway from DHCP server
+  shell: |
+       ip route get 8.8.8.8|awk '/via/ {print $3}'
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+  changed_when: false
+  register: vm_gateway
 
 - name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
   template:
@@ -27,16 +37,22 @@
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
-- name: update /etc/resolv.conf
-  template:
-    src: resolv.conf.j2
-    dest: /etc/resolv.conf
-  when: vm_ip.stdout is defined and vm_ip.stdout != "" and grow_os_disk_results.changed
-  delegate_to: "{{ vm_name }}"
-
 - name: ensure cloud-init is removed
   yum:
     name: cloud-init
     state: absent
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: reboot server
+  reboot:
+    reboot_timeout: 800
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
+- name: update /etc/resolv.conf
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+  when: vm_ip.stdout is defined and vm_ip.stdout != "" and grow_os_disk_results.changed
+  delegate_to: "{{ vm_name }}"
