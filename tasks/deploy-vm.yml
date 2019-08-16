@@ -103,9 +103,8 @@
 - name: create extra qcow disk
   vars:
     disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
-    disk_opt: "cluster_size=128K"
   command: >
-    qemu-img create -f qcow2 -o "{{ disk_opt }}" "{{ disk_name }}" "{{ item.size }}"
+    qemu-img create -f qcow2 -o  preallocation=falloc "{{ disk_name }}" "{{ item.size }}"
   args:
     creates: "{{ disk_name }}"
   loop: "{{ extra_storage }}"
