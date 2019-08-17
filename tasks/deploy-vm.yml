@@ -104,7 +104,7 @@
   vars:
     disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
   command: >
-    qemu-img create -f qcow2 -o  preallocation=falloc "{{ disk_name }}" "{{ item.size }}"
+    dd if=/dev/zero of={{ disk_name }} bs=1 count=0  seek={{ item.size }}
   args:
     creates: "{{ disk_name }}"
   loop: "{{ extra_storage }}"
