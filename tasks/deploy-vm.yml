@@ -6,11 +6,11 @@
 
 - name: fail if {{ os_qcow_template }} does not exist
   fail:
-    msg: >
+    msg: |
          The qcow os template {{ os_qcow_template }} does not exist.
          Please verify the variable os_qcow_template is set to the correct path
          or copy {{ cloud_init_vm_image }} to {{ os_qcow_template }}.
-  when: cloud_init_image_exist.exists == False
+  when: cloud_init_image_exist.stat.exists == False
 
 - name: Copy cloud-init user data
   template:
