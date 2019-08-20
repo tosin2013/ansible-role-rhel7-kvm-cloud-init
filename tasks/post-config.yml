@@ -54,6 +54,7 @@
   shell: "sleep 5 && reboot"
   async: 1
   poll: 0
+  delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
 - name: Wait for the reboot to complete
@@ -62,6 +63,7 @@
     sleep: 5
     delay: 5
     timeout: 300
+  delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
 - name: update /etc/resolv.conf
