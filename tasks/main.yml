@@ -11,7 +11,7 @@
   when: vm_recreate or vm_teardown
 
 - name: Create VM data dir where store vm information
-  file: 
+  file:
     state: directory
     path: "{{ vm_data_dir }}/{{ vm_name }}"
     force: yes
@@ -29,3 +29,4 @@
 
 - name: run post configuration
   import_tasks: post-config.yml
+  when: not vm_teardown
