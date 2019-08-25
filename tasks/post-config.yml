@@ -3,7 +3,7 @@
   lineinfile:
     path: "{{ inventory_file }}"
     line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
-    insertafter: '{{ inventory_group }}'
+    insertafter: '^\[{{ inventory_group }}\]'
     state: present
   register: update_inventory
   when: update_inventory and vm_ip.stdout is defined
@@ -31,7 +31,7 @@
     path: /etc/NetworkManager/NetworkManager.conf
     line: dns=none
     insertafter: '^\[main\]'
-    state: present 
+    state: present
   register: update_nmconf
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
