@@ -49,7 +49,7 @@
 #  delegate_to: "{{ vm_name }}"
 #  when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
-- name: restart network service
+- name: restart {{ vm_name }} network service
   command: "systemctl restart {{ item }}"
   args:
     warn: no
@@ -59,7 +59,7 @@
     - NetworkManager
   delegate_to: "{{ vm_name }}"
 
-- name: update /etc/resolv.conf
+- name: update {{ vm_name }} /etc/resolv.conf
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
