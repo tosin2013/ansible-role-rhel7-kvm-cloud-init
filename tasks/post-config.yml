@@ -22,6 +22,8 @@
   register: vm_gateway
 
 - name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
+  vars:
+    - vm_ipaddress: "{{ vm_ip.stdout }}"
   template:
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
