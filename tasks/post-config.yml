@@ -2,6 +2,8 @@
 - name: ensure host is added to inventory
   lineinfile:
     path: "{{ inventory_file }}"
+    regexp: "^{{ vm_name }}"
+    backrefs: yes
     line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
     insertafter: '^\[{{ inventory_group }}\]'
     state: present
