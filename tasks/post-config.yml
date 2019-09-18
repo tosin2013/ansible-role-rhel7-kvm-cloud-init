@@ -1,5 +1,14 @@
 ---
-- name: ensure host is added to inventory
+- name: add host to inventory
+  lineinfile:
+    path: "{{ inventory_file }}"
+    line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
+    insertafter: '^\[{{ inventory_group }}\]'
+    state: present
+  register: update_inventory
+  when: update_inventory and vm_ip.stdout is defined
+
+- name: ensure host is added to inventory and its a single entry
   lineinfile:
     path: "{{ inventory_file }}"
     regexp: "^{{ vm_name }}"
@@ -7,8 +16,8 @@
     line: "{{ vm_name }}   ansible_host={{ vm_ip.stdout }} ansible_user={{ admin_user }}"
     insertafter: '^\[{{ inventory_group }}\]'
     state: present
-  register: update_inventory
-  when: update_inventory and vm_ip.stdout is defined
+  register: ensure_inventory
+  when: update_inventory.changed
 
 - name: refresh local static inventory
   meta: refresh_inventory
@@ -21,6 +30,13 @@
   changed_when: false
   register: vm_gateway
 
+- name: ensure cloud-init is removed
+  yum:
+    name: cloud-init
+    state: absent
+  delegate_to: "{{ vm_name }}"
+  when: vm_ip.stdout is defined and vm_ip.stdout != ""
+
 - name: Deploy ifcfg-{{ vm_nic.stdout }} to VM
   vars:
     - vm_ipaddress: "{{ vm_ip.stdout }}"
@@ -30,22 +46,39 @@
   delegate_to: "{{ vm_name }}"
   when: vm_ip.stdout is defined and vm_ip.stdout != ""
 
-- name: ensure cloud-init is removed
-  yum:
-    name: cloud-init
-    state: absent
-  delegate_to: "{{ vm_name }}"
-  when: vm_ip.stdout is defined and vm_ip.stdout != ""
-
 - name: restart {{ vm_name }} network service
-  command: "systemctl restart {{ item }}"
+  shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
+  become: yes
   args:
     warn: no
+  async: 100
+  poll: 0
   changed_when: false
-  with_items:
-    - network
-    - NetworkManager
   delegate_to: "{{ vm_name }}"
+
+- name: Wait for the hosts network interface to come back up
+  wait_for:
+    host: "{{ vm_ipaddress }}"
+    port: 22
+    search_regex: OpenSSH
+    delay: 10
+  when: vm_ipaddress != ""
+
+- name: update host inventory ip address when user provided ip address
+  vars:
+    - vm_ipaddress: "{{ vm_ip.stdout }}"
+  lineinfile:
+    path: "{{ inventory_file }}"
+    regexp: "^{{ vm_name }}"
+    backrefs: yes
+    line: "{{ vm_name }}   ansible_host={{ vm_ipaddress }} ansible_user={{ admin_user }}"
+    insertafter: '^\[{{ inventory_group }}\]'
+    state: present
+  register: ensure_inventory
+  when: vm_ipaddress != ""
+
+- name: refresh local static inventory
+  meta: refresh_inventory
 
 - name: make sure resolv.conf is has entries
   find:
