@@ -16,6 +16,8 @@ cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
 vm_name: ""
 vm_domain: lab.example
 vm_ipaddress: ""
+vm_gateway: ""
+vm_mask: ""
 vm_recreate: false
 vm_teardown: false
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"

@@ -98,7 +98,7 @@
     msg: "{{ deploy_vm }}"
     verbosity: 2
 
-- name: copy script to KVM host
+- name: copy scripts to KVM host
   copy:
     src: "files/{{ item }}"
     dest: "/usr/local/bin/{{ item }}"
@@ -161,24 +161,39 @@
       until: vm_ip.stdout != ""
       retries: 30
       delay: 1
-      register: vm_ip
+      register: dhcp_vm_ip
       changed_when: False
   rescue:
     - debug:
         msg: "could not get ip for a vm"
+  when: vm_ipaddress | length == 0
+
+- fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: dhcp_vm_ip is not defined or vm_ipaddress | length != 0
+
+- set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout if dhcp_vm_ip is defined else vm_ipaddress }}"
+
+#- set_fact:
+#    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+#  when: dhcp_vm_ip is defined
+
+#- set_fact:
+#    vm_ip: "{{ vm_ipaddress }}"
+#  when: vm_ipaddress | length != 0
 
 - name: Get VM Netmask prefix
   shell: |
     /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
   register: vm_netmask_prefix
-  when: vm_ip.stdout != ""
   changed_when: False
+  when: vm_mask_prefix is not defined
 
 - name: Get VM nic device
   shell: |
     /usr/local/bin/getvmip -a| awk '/{{ vm_name }}/ {print $3}'
   register: vm_nic
-  when: vm_ip.stdout != ""
   changed_when: False
 
 - name: Check if cd-rom is attached
