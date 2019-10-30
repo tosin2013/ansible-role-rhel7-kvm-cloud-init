@@ -54,15 +54,15 @@
     src: user-data.j2
     dest: "{{ cloud_init_user_data }}"
     mode: 0777
-  register: cloud_intit_user_data
+  register: cloud_init_user_data
 
 - name: Generate cloud-init meta data
-  copy:
+  template:
+    src: meta-data.j2
     dest: "{{ cloud_init_meta_data }}"
-    content: |
-      instance-id: {{ vm_name }}
-      hostname: {{ vm_hostname }}
-      local-hostname: {{ vm_local_hostname }}
+    mode: 0777
+  register: cloud_init_meta_data
+
 
 - name: Create operating system disk for vm
   command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
@@ -122,7 +122,7 @@
 
 - name: Create iso image for cloud init
   shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
-  when: cloud_intit_user_data.changed or cloud_init_iso.stat.exists == False
+  when: cloud_init_user_data.changed or cloud_init_iso.stat.exists == False
 
 - name: generate virt-install command arguments
   template:

@@ -3,12 +3,6 @@ cloud_config_modules:
   - resolv_conf
   - cc_rh_subscription
 
-# Network config
-{% if static_ip|bool %}
-network:
-  config: disabled
-{% endif %}
-
 # Hostname management
 preserve_hostname: False
 hostname: {{ vm_local_hostname }}
