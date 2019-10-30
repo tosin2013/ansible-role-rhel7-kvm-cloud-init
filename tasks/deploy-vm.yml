@@ -173,7 +173,12 @@
   when: dhcp_vm_ip is not defined or vm_ipaddress | length == 0
 
 - set_fact:
-    vm_ip: "{{ dhcp_vm_ip.stdout if dhcp_vm_ip is defined else vm_ipaddress }}"
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+  when: dhcp_vm_ip is defined
+
+- set_fact:
+    vm_ip: "{{ vm_ipaddress }}"
+  when: vm_ipaddress is defined
 
 - name: Get VM Netmask prefix
   shell: |
