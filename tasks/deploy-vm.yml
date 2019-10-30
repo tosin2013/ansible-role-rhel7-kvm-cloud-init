@@ -4,10 +4,22 @@
     vm_ip: "{{ vm_ipaddress }}"
   when: vm_ipaddress is defined and vm_ipaddress | length != 0
 
-- name: generate random mac address when vm_ip defined
+# This requires a later version ansible
+#- name: generate random mac address when vm_ip defined
+#  set_fact:
+#    vm_mac: "{{ '52:54:00' | random_mac }}"
+#  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+
+# This can be deleted when using a later version of ansible
+- name: generate random mac address
+  shell: >
+    echo 52:54:00:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]
+  register: random_mac_address
+  changed_when: false
+
+- name: set vm_mac variable
   set_fact:
-    vm_mac: "{{ '52:54:00' | random_mac }}"
-  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+    vm_mac: "{{ random_mac_address.stdout }}"
 
 - name: check for user provided static ip address info
   set_fact:
