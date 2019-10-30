@@ -1,7 +1,6 @@
 instance-id: {{ vm_name }}
 hostname: {{ vm_hostname }}
 local-hostname: {{ vm_local_hostname }}
-# Network config
 {% if static_ip|bool %}
 network:
   config: disabled
