@@ -170,7 +170,7 @@
 
 - fail:
     msg: "Could not find the ip address for the VM {{ vm_name }}."
-  when: dhcp_vm_ip is not defined or vm_ipaddress | length != 0
+  when: dhcp_vm_ip is not defined or vm_ipaddress | length == 0
 
 - set_fact:
     vm_ip: "{{ dhcp_vm_ip.stdout if dhcp_vm_ip is defined else vm_ipaddress }}"
