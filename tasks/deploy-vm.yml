@@ -191,7 +191,7 @@
 
 - set_fact:
     vm_mask_prefix: "{{ netmask_prefix.stdout }}"
-  when: netmask_prefix is defined
+  when: netmask_prefix is defined and netmask_prefix is not skipped
 
 - name: Get VM nic device
   shell: |

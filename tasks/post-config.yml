@@ -32,7 +32,7 @@
 
 - set_fact:
     vm_gateway: "{{ gateway.stdout }}"
-  when: gateway is defined
+  when: gateway is defined and gateway is not skipped
 
 - name: ensure cloud-init is removed
   yum:
