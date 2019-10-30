@@ -3,7 +3,7 @@
 - name: scan remote for keys
   shell: |
       ssh-keyscan -H {{ vm_name }} \
-                  {{ vm_ip.stdout }} \
+                  {{ vm_ip }} \
                   {{ lookup('dig', vm_name ) }} | sort -u
   register: host_keys
   changed_when: false
@@ -15,7 +15,7 @@
     key: "{{ host_keys.stdout_lines | select('search','^'~item~' .*$') | join('\n') }}"
   loop:
     - "{{ vm_name }}"
-    - "{{ vm_ip.stdout }}"
+    - "{{ vm_ip }}"
     - "{{ lookup('dig', vm_name ) }}"
   failed_when: false
 
