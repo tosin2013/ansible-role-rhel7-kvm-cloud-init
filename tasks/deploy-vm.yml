@@ -185,9 +185,13 @@
 - name: Get VM Netmask prefix
   shell: |
     /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
-  register: vm_netmask_prefix
+  register: netmask_prefix
   changed_when: False
   when: vm_mask_prefix is not defined
+
+- set_fact:
+    vm_mask_prefix: "{{ netmask_prefix.stdout }}"
+  when: netmask_prefix is defined
 
 - name: Get VM nic device
   shell: |

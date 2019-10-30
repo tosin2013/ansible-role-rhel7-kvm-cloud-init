@@ -6,11 +6,6 @@ virt-install --connect qemu:///system --import --name {{ vm_name }} \
              --disk {{ cloud_init_iso_image }},device=cdrom \
              --network {{ vm_virtinstall_net_opts }} \
              --os-type=linux --os-variant={{ os_variant }} --noautoconsole \
-             --autostart \
-             {% if vm_ip is defined and vm_gateway is defined and vm_mask is defined %}
-             --extra-args="console=tty0 console=ttyS0,115200n8 ip={{ vm_ip }}::{{ vm_gateway }}:{{ vm_mask }}:{{ vm_name }}.{{ vm_domain }}:eth0:none"
-             {% else %}
-             --extra-args="console=tty0 console=ttyS0,115200n8"
-             {% endif %}}
+             --autostart
 
 exit 0

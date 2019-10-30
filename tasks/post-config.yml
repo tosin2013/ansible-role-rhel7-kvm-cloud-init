@@ -28,7 +28,11 @@
   delegate_to: "{{ vm_name }}"
   when: vm_gateway is not defined
   changed_when: false
-  register: vm_gateway
+  register: gateway
+
+- set_fact:
+    vm_gateway: "{{ gateway.stdout }}"
+  when: gateway is defined
 
 - name: ensure cloud-init is removed
   yum:
@@ -42,7 +46,8 @@
     src: ifcfg.j2
     dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
   delegate_to: "{{ vm_name }}"
-  when: vm_ipaddress is not defined
+  register: upload_ifcfg
+  when: vm_ip is defined
 
 - name: restart {{ vm_name }} network service
   shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
@@ -53,7 +58,7 @@
   poll: 0
   changed_when: false
   delegate_to: "{{ vm_name }}"
-  when: vm_ipaddress is not defined
+  when: upload_ifcfg.changed
 
 - name: Wait for the hosts network interface to come back up
   wait_for:
@@ -61,7 +66,7 @@
     port: 22
     search_regex: OpenSSH
     delay: 10
-  when: vm_ipaddress is not defined
+  when: upload_ifcfg.changed
 
 - name: update host inventory ip address when user provided ip address
   lineinfile:
