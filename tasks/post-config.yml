@@ -22,8 +22,9 @@
 - name: refresh local static inventory
   meta: refresh_inventory
 
-- name: restarting {{ vm_name }}
-  command
+#- name: restarting {{ vm_name }}
+#  command
+
 - name: ensure cloud-init is removed
   yum:
     name: cloud-init
