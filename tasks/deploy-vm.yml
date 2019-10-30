@@ -106,7 +106,7 @@
   command: >
     virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   register: uploaded_static_ip
-  when: static_ip|true
+  when: static_ip|bool
 
 - name: Set the root password for the vm
   command: >
