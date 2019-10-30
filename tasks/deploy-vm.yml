@@ -226,4 +226,3 @@
 
 - name: include dhcp_to_static task
   import_tasks: dhcp_to_static.yml
-  when: not static_ip|bool
