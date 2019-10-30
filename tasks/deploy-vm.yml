@@ -103,8 +103,6 @@
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
 - name: set VM static ip based on user provided value
-  vars:
-    - vm_nic: "eth0"
   command: >
     virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   register: uploaded_static_ip

@@ -28,6 +28,7 @@ vm_libvirt_net: default
 os_variant: rhel7
 vm_data_dir: "/var/lib/vmdata"
 vm_ifcfg: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg"
+vm_nic: "eth0"
 
 vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
 vm_ifcfg_file: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg-{{ vm_nic.stdout }}"
