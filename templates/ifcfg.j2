@@ -1,7 +1,7 @@
 # {{ ansible_managed }}
 BOOTPROTO=none
-DEVICE={{ vm_nic.stdout }}
-HWADDR={{ mac_info.stdout }}
+DEVICE={{ vm_nic }}
+HWADDR={{ vm_mac }}
 ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no

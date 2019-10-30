@@ -27,6 +27,7 @@ vm_root_disk_size: 20G
 vm_libvirt_net: default
 os_variant: rhel7
 vm_data_dir: "/var/lib/vmdata"
+vm_ifcfg: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg"
 
 vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
 vm_ifcfg_file: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg-{{ vm_nic.stdout }}"
@@ -36,6 +37,10 @@ vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
 update_inventory: false
 inventory_file: ""
 inventory_group: ""
+
+# This should not be changed, if user provides static ip info
+# this will be change to true
+static_ip: false
 
 #RHEL Subscription Info
 rhsm_username: ""

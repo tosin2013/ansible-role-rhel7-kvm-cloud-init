@@ -1,4 +1,29 @@
 ---
+- name: setting vm_ip if user provided ip address
+  set_fact:
+    vm_ip: "{{ vm_ipaddress }}"
+  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+
+- name: generate random mac address when vm_ip defined
+  set_fact:
+    vm_mac: "{{ '52:54:00' | random_mac }}"
+  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+
+- name: check for user provided static ip address info
+  set_fact:
+    static_ip: true
+  when:
+    - vm_mac is defined
+    - vm_ip is defined
+    - vm_gateway is defined
+    - vm_mask_prefix is defined
+
+- name: generate ifcfg interface template
+  template:
+    src: ifcfg.j2
+    dest: "{{ vm_ifcfg }}"
+  when: static_ip|bool
+
 - name: Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
@@ -64,6 +89,14 @@
   register: grow_os_disk_results
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
+
+- name: set VM static ip based on user provided value
+  vars:
+    - vm_nic: "eth0"
+  command: >
+    virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  register: uploaded_static_ip
+  when: static_ip|true
 
 - name: Set the root password for the vm
   command: >
@@ -173,31 +206,9 @@
     vm_ip: "{{ dhcp_vm_ip.stdout }}"
   when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
 
-- name: setting vm_ip if user provided ip address
-  set_fact:
-    vm_ip: "{{ vm_ipaddress }}"
-  when: vm_ipaddress is defined and vm_ipaddress | length != 0
-
 - fail:
     msg: "Could not find the ip address for the VM {{ vm_name }}."
   when: vm_ip is not defined
-
-- name: Get VM Netmask prefix
-  shell: |
-    /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
-  register: netmask_prefix
-  changed_when: False
-  when: vm_mask_prefix is not defined
-
-- set_fact:
-    vm_mask_prefix: "{{ netmask_prefix.stdout }}"
-  when: netmask_prefix is defined and netmask_prefix is not skipped
-
-- name: Get VM nic device
-  shell: |
-    /usr/local/bin/getvmip -a| awk '/{{ vm_name }}/ {print $3}'
-  register: vm_nic
-  changed_when: False
 
 - name: Check if cd-rom is attached
   shell: >

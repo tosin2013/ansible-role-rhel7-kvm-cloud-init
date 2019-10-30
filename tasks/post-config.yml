@@ -22,51 +22,12 @@
 - name: refresh local static inventory
   meta: refresh_inventory
 
-- name: get vm gateway when using dhcp client
-  shell: |
-       ip route get 8.8.8.8|awk '/via/ {print $3}'
-  delegate_to: "{{ vm_name }}"
-  when: vm_gateway is not defined
-  changed_when: false
-  register: gateway
-
-- set_fact:
-    vm_gateway: "{{ gateway.stdout }}"
-  when: gateway is defined and gateway is not skipped
-
 - name: ensure cloud-init is removed
   yum:
     name: cloud-init
     state: absent
   delegate_to: "{{ vm_name }}"
   when: vm_ip is defined
-
-- name: change DHCP provided ip to static config
-  template:
-    src: ifcfg.j2
-    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
-  delegate_to: "{{ vm_name }}"
-  register: upload_ifcfg
-  when: vm_ip is defined
-
-- name: restart {{ vm_name }} network service
-  shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
-  become: yes
-  args:
-    warn: no
-  async: 100
-  poll: 0
-  changed_when: false
-  delegate_to: "{{ vm_name }}"
-  when: upload_ifcfg.changed
-
-- name: Wait for the hosts network interface to come back up
-  wait_for:
-    host: "{{ vm_ipaddress }}"
-    port: 22
-    search_regex: OpenSSH
-    delay: 10
-  when: upload_ifcfg.changed
 
 - name: update host inventory ip address when user provided ip address
   lineinfile:
@@ -97,6 +58,10 @@
   register: dns_lookup_result
   delegate_to: "{{ vm_name }}"
   become: yes
+
+- name: include dhcp_to_static task
+  import_tasks: dhcp_to_static.yml
+  when: not static_ip|bool
 
 - name: update {{ vm_name }} /etc/resolv.conf
   template:
