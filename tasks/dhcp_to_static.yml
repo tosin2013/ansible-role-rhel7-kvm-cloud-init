@@ -1,0 +1,55 @@
+---
+- name: Get VM Netmask prefix
+  shell: |
+    /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
+  register: netmask_prefix
+  changed_when: False
+  when: vm_mask_prefix is not defined
+
+- set_fact:
+    vm_mask_prefix: "{{ netmask_prefix.stdout }}"
+  when: netmask_prefix is defined and netmask_prefix is not skipped
+
+- name: Get VM nic device
+  shell: |
+    /usr/local/bin/getvmip -a| awk '/{{ vm_name }}/ {print $3}'
+  register: vm_nic
+  changed_when: False
+
+- name: get vm gateway when using dhcp client
+  shell: |
+       ip route get 8.8.8.8|awk '/via/ {print $3}'
+  delegate_to: "{{ vm_name }}"
+  when: vm_gateway is not defined
+  changed_when: false
+  register: gateway
+
+- set_fact:
+    vm_gateway: "{{ gateway.stdout }}"
+  when: gateway is defined and gateway is not skipped
+
+- name: change DHCP provided ip to static config
+  template:
+    src: ifcfg.j2
+    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
+  delegate_to: "{{ vm_name }}"
+  register: upload_ifcfg
+
+- name: restart {{ vm_name }} network service
+  shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
+  become: yes
+  args:
+    warn: no
+  async: 100
+  poll: 0
+  changed_when: false
+  delegate_to: "{{ vm_name }}"
+  when: upload_ifcfg.changed
+
+- name: Wait for the hosts network interface to come back up
+  wait_for:
+    host: "{{ vm_ipaddress }}"
+    port: 22
+    search_regex: OpenSSH
+    delay: 10
+  when: upload_ifcfg.changed
