@@ -168,17 +168,19 @@
         msg: "could not get ip for a vm"
   when: vm_ipaddress | length == 0
 
+- name: setting vm_ip if ip address is issued via dhcp
+  set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
+
+- name: setting vm_ip if user provided ip address
+  set_fact:
+    vm_ip: "{{ vm_ipaddress }}"
+  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+
 - fail:
     msg: "Could not find the ip address for the VM {{ vm_name }}."
-  when: dhcp_vm_ip is not defined or vm_ipaddress | length == 0
-
-- set_fact:
-    vm_ip: "{{ dhcp_vm_ip.stdout }}"
-  when: dhcp_vm_ip is defined
-
-- set_fact:
-    vm_ip: "{{ vm_ipaddress }}"
-  when: vm_ipaddress is defined
+  when: vm_ip is not defined
 
 - name: Get VM Netmask prefix
   shell: |
