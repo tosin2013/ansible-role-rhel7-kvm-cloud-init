@@ -62,10 +62,6 @@
   delegate_to: "{{ vm_name }}"
   become: yes
 
-- name: include dhcp_to_static task
-  import_tasks: dhcp_to_static.yml
-  when: not static_ip|bool
-
 - name: update {{ vm_name }} /etc/resolv.conf
   template:
     src: resolv.conf.j2

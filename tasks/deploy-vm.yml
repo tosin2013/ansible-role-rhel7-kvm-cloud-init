@@ -54,14 +54,14 @@
     src: user-data.j2
     dest: "{{ cloud_init_user_data }}"
     mode: 0777
-  register: cloud_init_user_data
+  register: user_data_cloud_init
 
 - name: Generate cloud-init meta data
   template:
     src: meta-data.j2
     dest: "{{ cloud_init_meta_data }}"
     mode: 0777
-  register: cloud_init_meta_data
+  register: meta_data_cloud_init
 
 
 - name: Create operating system disk for vm
@@ -102,12 +102,6 @@
   changed_when: '"Finishing off" in grow_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
-- name: set VM static ip based on user provided value
-  command: >
-    virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
-  register: uploaded_static_ip
-  when: static_ip|bool
-
 - name: Set the root password for the vm
   command: >
     virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
@@ -121,8 +115,8 @@
   register: cloud_init_iso
 
 - name: Create iso image for cloud init
-  shell: "genisoimage -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
-  when: cloud_init_user_data.changed or cloud_init_iso.stat.exists == False
+  shell: "genisoimage -input-charset utf-8 -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
+  when: user_data_cloud_init.changed or cloud_init_iso.stat.exists == False
 
 - name: generate virt-install command arguments
   template:
@@ -229,3 +223,7 @@
 - name: Eject CD-Rom
   shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
   when: check_cdrom.stdout != ""
+
+- name: include dhcp_to_static task
+  import_tasks: dhcp_to_static.yml
+  when: not static_ip|bool

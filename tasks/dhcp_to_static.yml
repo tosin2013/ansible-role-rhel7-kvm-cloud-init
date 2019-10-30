@@ -28,28 +28,44 @@
     vm_gateway: "{{ gateway.stdout }}"
   when: gateway is defined and gateway is not skipped
 
-- name: change DHCP provided ip to static config
-  template:
-    src: ifcfg.j2
-    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
-  delegate_to: "{{ vm_name }}"
-  register: upload_ifcfg
+- name: shuting down {{ vm_name }}
+  virt:
+    name: "{{ vm_name }}"
+    state: shutdown
 
-- name: restart {{ vm_name }} network service
-  shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
-  become: yes
-  args:
-    warn: no
-  async: 100
-  poll: 0
-  changed_when: false
-  delegate_to: "{{ vm_name }}"
-  when: upload_ifcfg.changed
+- name: set VM static ip based on user provided value
+  command: >
+    virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  register: uploaded_static_ip
+  when: static_ip|bool
 
-- name: Wait for the hosts network interface to come back up
-  wait_for:
-    host: "{{ vm_ipaddress }}"
-    port: 22
-    search_regex: OpenSSH
-    delay: 10
-  when: upload_ifcfg.changed
+- name: starting up {{ vm_name }}
+  virt:
+    name: "{{ vm_name }}"
+    state: running
+
+#- name: change DHCP provided ip to static config
+#  template:
+#    src: ifcfg.j2
+#    dest: "/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic.stdout }}"
+#  delegate_to: "{{ vm_name }}"
+#  register: upload_ifcfg
+#
+#- name: restart {{ vm_name }} network service
+#  shell: "(sleep 1; ifdown {{ vm_nic.stdout }} && ifup {{ vm_nic.stdout }} )&"
+#  become: yes
+#  args:
+#    warn: no
+#  async: 100
+#  poll: 0
+#  changed_when: false
+#  delegate_to: "{{ vm_name }}"
+#  when: upload_ifcfg.changed
+#
+#- name: Wait for the hosts network interface to come back up
+#  wait_for:
+#    host: "{{ vm_ipaddress }}"
+#    port: 22
+#    search_regex: OpenSSH
+#    delay: 10
+#  when: upload_ifcfg.changed
