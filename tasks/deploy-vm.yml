@@ -175,14 +175,6 @@
 - set_fact:
     vm_ip: "{{ dhcp_vm_ip.stdout if dhcp_vm_ip is defined else vm_ipaddress }}"
 
-#- set_fact:
-#    vm_ip: "{{ dhcp_vm_ip.stdout }}"
-#  when: dhcp_vm_ip is defined
-
-#- set_fact:
-#    vm_ip: "{{ vm_ipaddress }}"
-#  when: vm_ipaddress | length != 0
-
 - name: Get VM Netmask prefix
   shell: |
     /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
