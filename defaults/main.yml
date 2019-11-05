@@ -22,6 +22,7 @@ vm_cpu: 2
 vm_memory: 2048
 vm_root_disk_size: 20G
 vm_libvirt_net: default
+rhel_vm_libvirt_net: default
 os_variant: rhel7
 vm_data_dir: "/var/lib/vmdata"
 
@@ -29,7 +30,7 @@ vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
 vm_ifcfg_file: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg-{{ vm_nic.stdout }}"
 vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
 vm_hostname: "{{ vm_local_hostname }}"
-vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
+vm_virtinstall_net_opts: "network={{ rhel_vm_libvirt_net }}"
 update_inventory: false
 inventory_file: ""
 inventory_group: ""
