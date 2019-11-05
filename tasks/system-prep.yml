@@ -17,7 +17,7 @@
     - "{{ vm_name }}"
     - "{{ vm_ip.stdout }}"
     - "{{ lookup('dig', vm_name ) }}"
-  ignore_errors: True
+  failed_when: false
 #  delegate_to: localhost
 
 #- name: Add Known host
