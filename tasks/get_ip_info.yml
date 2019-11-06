@@ -17,6 +17,9 @@
     vm_ip: "{{ dhcp_vm_ip.stdout }}"
   when: vm_ipaddress | length == 0
 
+- set_fact:
+    vm_ip_differ: false
+    
 - name: check if VM current ip matches the user provided ip
   set_fact:
     vm_ip_differ: true
