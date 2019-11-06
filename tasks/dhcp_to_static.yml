@@ -45,9 +45,15 @@
     state: running
   when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
+- name: Gather VM ip networking info
+  import_tasks: get_ip_info.yml
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
+
 - name: Wait for network connectivty to {{ vm_name }}
   wait_for:
-    host: "{{ vm_ipaddress }}"
+    host: "{{ vm_ip }}"
     port: 22
     search_regex: OpenSSH
     delay: 10

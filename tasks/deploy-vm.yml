@@ -16,25 +16,12 @@
     echo 52:54:00:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]
   register: random_mac_address
   changed_when: false
+  when: vm_name not in all_instances.list_vms
 
 - name: set vm_mac variable
   set_fact:
     vm_mac: "{{ random_mac_address.stdout }}"
-
-#- name: check for user provided static ip address info
-#  set_fact:
-#    static_ip: true
-#  when:
-#    - vm_mac is defined
-#    - vm_ip is defined
-#    - vm_gateway is defined
-#    - vm_mask_prefix is defined
-
-- name: generate {{ vm_name }} ifcfg interface template
-  template:
-    src: ifcfg.j2
-    dest: "{{ vm_ifcfg }}"
-  when: static_ip|bool
+  when: vm_name not in all_instances.list_vms
 
 - name: Check if qcow OS image template exist
   stat:

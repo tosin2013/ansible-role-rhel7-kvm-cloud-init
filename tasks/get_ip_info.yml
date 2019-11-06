@@ -51,3 +51,8 @@
 - fail:
     msg: "Could not find the ip address for the VM {{ vm_name }}."
   when: vm_ip is not defined or vm_ip | length == 0
+
+- name: generate {{ vm_name }} ifcfg interface template
+  template:
+    src: ifcfg.j2
+    dest: "{{ vm_ifcfg }}"
