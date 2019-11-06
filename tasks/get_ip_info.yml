@@ -10,12 +10,18 @@
   rescue:
     - debug:
         msg: "could not get ip for a vm"
-  when: vm_ipaddress | length == 0 or not static_ip|bool
+#  when: vm_ipaddress | length == 0 or not static_ip|bool
 
 - name: setting vm_ip variable to {{ dhcp_vm_ip.stdout }} dhcp provided ip
   set_fact:
     vm_ip: "{{ dhcp_vm_ip.stdout }}"
-  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
+  when: vm_ipaddress | length == 0
+
+- name: check if VM current ip matches the user provided ip
+  set_fact:
+    vm_ip_differ: true
+  when: vm_ipaddress | length != 0 and (dhcp_vm_ip.stdout != vm_ipaddress)
+#  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
 
 - name: discover {{ vm_name }} netmask prefix when using DHCP
   shell: |

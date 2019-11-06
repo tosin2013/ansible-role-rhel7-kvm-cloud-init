@@ -1,10 +1,14 @@
 # {{ ansible_managed }}
-BOOTPROTO=none
 DEVICE={{ vm_nic }}
 HWADDR={{ vm_mac }}
 ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
+{% if vm_ip and vm_gateway and vm_mask_prefix %}
+BOOTPROTO=none
 IPADDR={{ vm_ip }}
 GATEWAY={{ vm_gateway }}
 PREFIX={{ vm_mask_prefix }}
+{% else %}
+BOOTPROTO=dhcp
+{% endif %}
