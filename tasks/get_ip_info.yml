@@ -1,6 +1,6 @@
 ---
 - block:
-    - name: discover {{ vm_name }} ip address when using DHCP
+    - name: try to discover {{ vm_name }} ip address
       command: "/usr/local/bin/getvmip -r {{ vm_name }}"
       until: dhcp_vm_ip.stdout != ""
       retries: 30

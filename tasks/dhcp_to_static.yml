@@ -11,8 +11,7 @@
       IPADDR={{ vm_ip }}
       GATEWAY={{ vm_gateway }}
       PREFIX={{ vm_mask_prefix }}
-    verbose: 2
-
+    verbosity: 2
     
 - name: shutting down {{ vm_name }} to run virt-customize
   shell: |
