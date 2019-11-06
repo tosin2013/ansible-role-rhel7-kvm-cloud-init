@@ -19,7 +19,7 @@
 
 - set_fact:
     vm_ip_differ: false
-    
+
 - name: check if VM current ip matches the user provided ip
   set_fact:
     vm_ip_differ: true
@@ -50,6 +50,19 @@
   set_fact:
     vm_gateway: "{{ gateway.stdout }}"
   when: gateway is defined and gateway is not skipped
+
+- name: Get MAC address
+  shell: >
+     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
+  delegate_to: "{{ kvm_install_host }}"
+  register: vm_mac_result
+  changed_when: false
+  when: vm_name in all_instances.list_vms and vm_mac is not defined
+
+- name: setting {{ vm_name }} vm_mac variable to {{ vm_mac_result.stdout }} 
+  set_fact:
+    vm_mac: "{{ vm_mac_result.stdout }}"
+  when: vm_name in all_instances.list_vms and vm_mac is not defined
 
 - fail:
     msg: "Could not find the ip address for the VM {{ vm_name }}."
