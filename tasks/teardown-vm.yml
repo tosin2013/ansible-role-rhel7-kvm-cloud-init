@@ -1,10 +1,37 @@
 ---
+- name: check if OS disk exist
+  stat:
+    path: "{{ os_disk }}"
+  register: os_disk_exist
+
+- name: shutting down {{ vm_name }} to run virt-customize
+  shell: |
+    result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
+    if [ $result == 'shut' ];
+    then
+       echo "shutoff"
+    else
+      virsh shutdown {{ vm_name }};
+    fi
+  register: vm_shutdown_status
+  until: vm_shutdown_status.stdout.find('shutoff') != -1
+  retries: 18
+  delay: 3
+  ignore_errors: true
+  when: os_disk_exist.stat.exists
+
+- name: ensure {{ vm_name }} is unregistered from RHSM
+  command: >
+    virt-customize -a {{ os_disk }} --run-command 'subscription-manager unregister'
+  ignore_errors: true
+  when: os_disk_exist.stat.exists
+
 - name: Destroy vm
   command: "virsh destroy {{ vm_name }}"
   register: virsh_destroy_results
   changed_when: '"destroyed" in virsh_destroy_results.stdout'
   ignore_errors: true
-  when: vm_name in all_instances.list_vms
+  when: vm_name in all_instances.list_vms and vm_shutdown_status is not defined
 
 - name: Undefine vm
   command: "virsh undefine {{ vm_name }}"
@@ -29,3 +56,5 @@
     state: absent
   with_items: "{{ vm_disks_all.files }}"
   when: vm_disks_all.matched != 0
+
+- meta: end_play

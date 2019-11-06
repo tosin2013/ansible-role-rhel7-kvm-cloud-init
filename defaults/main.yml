@@ -1,47 +1,34 @@
 ---
-# defaults file for ansible-role-rhel7-kvm-cloud-init
-# KVM config
-kvm_vm_pool_dir: "/var/lib/libvirt/images"
-kvm_install_host: localhost
-
-# Cloud Init Config
+##########################
+# UPDATE THESE AS NEEDED #
+##########################
 cloud_init_vm_image: "rhel-server-7.6-x86_64-kvm.qcow2"
-cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
-cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
-cidata_iso_name: cidata.iso
-cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
-
-
-# VM instnaces
+kvm_install_host: localhost
 vm_name: ""
 vm_domain: lab.example
-vm_ipaddress: ""
-vm_gateway: ""
-vm_mask: ""
-vm_recreate: false
+
+# Set to true to delete the VM
 vm_teardown: false
+
 vm_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 vm_cpu: 2
 vm_memory: 2048
 vm_root_disk_size: 20G
 vm_libvirt_net: default
 os_variant: rhel7
-vm_data_dir: "/var/lib/vmdata"
-vm_ifcfg: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg"
-vm_nic: "eth0"
-
-vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
-vm_ifcfg_file: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg-{{ vm_nic.stdout }}"
-vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
-vm_hostname: "{{ vm_local_hostname }}"
-vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
-update_inventory: false
 inventory_file: ""
 inventory_group: ""
+#default RHEL user and password
+admin_user: admin
+admin_user_password: ""
+kvm_vm_root_pwd: ""
 
-# This should not be changed, if user provides static ip info
-# this will be change to true
-static_ip: false
+# to provide static ip info set static_ip to true along and the relevant details
+static_ip: False
+vm_gateway: ""
+vm_ipaddress: ""
+vm_mask: ""
+vm_nic: "eth0"
 
 #RHEL Subscription Info
 rhsm_username: ""
@@ -49,27 +36,39 @@ rhsm_password: ""
 rhsm_org: ""
 rhsm_activationkey: ""
 
-#default RHEL user and password
-admin_user: admin
-admin_user_password: ""
-kvm_vm_root_pwd: ""
-
 # Manage DNS Resolv.conf
 manage_dns: true  # sets cloud-init to setup DNS
 dns_servers:
   - 1.1.1.1
   - 8.8.8.8
-search_domains: 
-  - "{{ vm_domain }}"
 
-# Storage Options
-disk_opt: "cluster_size=128K"
+# Extra disk for VMs, set enable to true along with size
 extra_storage:
   - size: 80G
     enable: false
   - size: 50G
     enable: false
 
+#################
+# SAFE DEFAULTS #
+#################
+kvm_vm_pool_dir: "/var/lib/libvirt/images"
+cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
+cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
+cidata_iso_name: cidata.iso
+cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
+vm_data_dir: "/var/lib/vmdata"
+vm_ifcfg: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg"
+vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"
+vm_ifcfg_file: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg-{{ vm_nic.stdout }}"
+vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
+vm_hostname: "{{ vm_local_hostname }}"
+vm_virtinstall_net_opts: "network={{ vm_libvirt_net }}"
+update_inventory: false
+search_domains: 
+  - "{{ vm_domain }}"
+# Storage Options
+disk_opt: "cluster_size=128K"
 # The below variables should not be changed
 os_disk: "{{ kvm_vm_pool_dir }}/{{ vm_name }}_vda.qcow2"
 os_qcow_template: "{{ kvm_vm_pool_dir }}/{{ cloud_init_vm_image }}"

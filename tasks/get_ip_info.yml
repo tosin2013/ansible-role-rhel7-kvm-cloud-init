@@ -1,0 +1,47 @@
+---
+- block:
+    - name: discover {{ vm_name }} ip address when using DHCP
+      command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+      until: dhcp_vm_ip.stdout != ""
+      retries: 30
+      delay: 1
+      register: dhcp_vm_ip
+      changed_when: False
+  rescue:
+    - debug:
+        msg: "could not get ip for a vm"
+  when: vm_ipaddress | length == 0 or not static_ip|bool
+
+- name: setting vm_ip variable to {{ dhcp_vm_ip.stdout }} dhcp provided ip
+  set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
+
+- name: discover {{ vm_name }} netmask prefix when using DHCP
+  shell: |
+    /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
+  register: netmask_prefix
+  changed_when: False
+  when: vm_mask_prefix is not defined
+
+- name: setting vm_mask_prefix variable to {{ vm_name }} dhcp provided netmask
+  set_fact:
+    vm_mask_prefix: "{{ netmask_prefix.stdout }}"
+  when: netmask_prefix is defined and netmask_prefix is not skipped
+
+- name: discover {{ vm_name }} gateway when using DHCP
+  shell: |
+       ip route get 8.8.8.8|awk '/via/ {print $3}'
+  delegate_to: "{{ vm_name }}"
+  changed_when: false
+  register: gateway
+  when: vm_gateway is not defined
+
+- name: setting vm_gateway variable to {{ vm_name }} dhcp provided gateway
+  set_fact:
+    vm_gateway: "{{ gateway.stdout }}"
+  when: gateway is defined and gateway is not skipped
+
+- fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0

@@ -1,49 +1,32 @@
 ---
-- name: add host to inventory
-  lineinfile:
-    path: "{{ inventory_file }}"
-    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
-    insertafter: '^\[{{ inventory_group }}\]'
-    state: present
-  register: update_inventory
+- name: check for {{ vm_name }} in inventory {{ inventory_file }}
+  command: grep {{ vm_name }} {{ inventory_file }}
+  register: vm_in_inventory
+  check_mode: no
+  ignore_errors: yes
+  changed_when: no
   when: update_inventory and vm_ip is defined
 
-- name: ensure host is added to inventory and its a single entry
-  lineinfile:
-    path: "{{ inventory_file }}"
-    regexp: "^{{ vm_name }}"
-    backrefs: yes
-    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
-    insertafter: '^\[{{ inventory_group }}\]'
+- name: scan remote for keys
+  shell: |
+      ssh-keyscan -H {{ vm_name }} \
+                  {{ vm_ip }} \
+                  {{ lookup('dig', vm_name ) }} | sort -u
+  register: host_keys
+  changed_when: false
+  delegate_to: "{{ kvm_install_host }}"
+
+- name: Update "~/.ssh/known_hosts" with discovered keys
+  known_hosts:
     state: present
-  register: ensure_inventory
-  when: update_inventory.changed
-
-- name: refresh local static inventory
-  meta: refresh_inventory
-
-#- name: restarting {{ vm_name }}
-#  command
-
-- name: ensure cloud-init is removed
-  yum:
-    name: cloud-init
-    state: absent
-  delegate_to: "{{ vm_name }}"
-  when: vm_ip is defined
-
-- name: update host inventory ip address when user provided ip address
-  lineinfile:
-    path: "{{ inventory_file }}"
-    regexp: "^{{ vm_name }}"
-    backrefs: yes
-    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
-    insertafter: '^\[{{ inventory_group }}\]'
-    state: present
-  register: ensure_inventory
-
-- name: refresh local static inventory
-  meta: refresh_inventory
+    name: "{{ item }}"
+    key: "{{ host_keys.stdout_lines | select('search','^'~item~' .*$') | join('\n') }}"
+  loop:
+    - "{{ vm_name }}"
+    - "{{ vm_ip }}"
+    - "{{ lookup('dig', vm_name ) }}"
+  failed_when: false
+  delegate_to: "{{ kvm_install_host }}"
 
 - name: make sure resolv.conf is updated
   find:
@@ -52,7 +35,7 @@
     patterns: "resolv.conf"
   register: resolv_conf_entries
   delegate_to: "{{ vm_name }}"
-  become: yes
+  when: vm_in_inventory.rc == 0
 
 - name: check for dns lookup
   command: getent ahosts www.cnet.com
@@ -60,13 +43,21 @@
   changed_when: false
   register: dns_lookup_result
   delegate_to: "{{ vm_name }}"
-  become: yes
+  when: vm_in_inventory.rc == 0
 
 - name: update {{ vm_name }} /etc/resolv.conf
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
-  when: (vm_ip is defined and vm_ip != "" and resolv_conf_entries.matched == 0)
+  when: (vm_in_inventory.rc == 0 and resolv_conf_entries.matched == 0)
         or
-        (vm_ip is defined and vm_ip != "" and dns_lookup_result.rc == 2)
+        (vm_in_inventory.rc == 0 and dns_lookup_result.rc == 2)
   delegate_to: "{{ vm_name }}"
+  when: vm_in_inventory.rc == 0
+
+- name: ensure cloud-init is uninstalled when not using static ip configuration
+  yum:
+    name: cloud-init
+    state: absent
+  delegate_to: "{{ vm_name }}"
+  when: vm_in_inventory.rc == 0 and not static_ip|bool

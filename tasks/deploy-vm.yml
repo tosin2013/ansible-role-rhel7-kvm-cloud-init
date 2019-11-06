@@ -21,16 +21,16 @@
   set_fact:
     vm_mac: "{{ random_mac_address.stdout }}"
 
-- name: check for user provided static ip address info
-  set_fact:
-    static_ip: true
-  when:
-    - vm_mac is defined
-    - vm_ip is defined
-    - vm_gateway is defined
-    - vm_mask_prefix is defined
+#- name: check for user provided static ip address info
+#  set_fact:
+#    static_ip: true
+#  when:
+#    - vm_mac is defined
+#    - vm_ip is defined
+#    - vm_gateway is defined
+#    - vm_mask_prefix is defined
 
-- name: generate ifcfg interface template
+- name: generate {{ vm_name }} ifcfg interface template
   template:
     src: ifcfg.j2
     dest: "{{ vm_ifcfg }}"
@@ -63,7 +63,6 @@
     mode: 0777
   register: meta_data_cloud_init
 
-
 - name: Create operating system disk for vm
   command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
   args:
@@ -86,8 +85,6 @@
   set_fact:
     os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
   when: os_disk_created.stat.exists
-
-# TODO: add play to exit if OS disk could not be found
 
 - name: Push base image onto vm operating system disk
   command: >
@@ -123,6 +120,7 @@
     src: virt-install-cmd.j2
     dest: "{{ vm_virtinstall_script }}"
     mode: 0755
+  when: vm_name not in all_instances.list_vms
 
 - name: deploy VM instance
   command: "bash -x {{ vm_virtinstall_script }}"
@@ -134,16 +132,6 @@
 - debug:
     msg: "{{ deploy_vm }}"
     verbosity: 2
-
-- name: copy scripts to KVM host
-  copy:
-    src: "files/{{ item }}"
-    dest: "/usr/local/bin/{{ item }}"
-    mode: 755
-    owner: root
-  with_items:
-    - getvmip
-    - attach-libvirt-disk
 
 - name: create extra qcow disk
   vars:
@@ -177,52 +165,17 @@
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
 
-- name: Get MAC address
-  shell: >
-     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
-  delegate_to: "{{ kvm_install_host }}"
-  register: mac_info
-  changed_when: false
-
-- name: Gather bridge device name
-  shell: >
-    virsh --connect qemu:///system net-info {{ vm_libvirt_net }}|grep Bridge|awk '{print $2}'
-  delegate_to: "{{ kvm_install_host }}"
-  register: vm_libvirt_net_dev_name
-  changed_when: false
-
-- name: Gather IP address of the VM and handle errors
-  block:
-    - name: get VM ip
-      command: "/usr/local/bin/getvmip -r {{ vm_name }}"
-      until: vm_ip.stdout != ""
-      retries: 30
-      delay: 1
-      register: dhcp_vm_ip
-      changed_when: False
-  rescue:
-    - debug:
-        msg: "could not get ip for a vm"
-  when: vm_ipaddress | length == 0
-
-- name: setting vm_ip if ip address is issued via dhcp
-  set_fact:
-    vm_ip: "{{ dhcp_vm_ip.stdout }}"
-  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
-
-- fail:
-    msg: "Could not find the ip address for the VM {{ vm_name }}."
-  when: vm_ip is not defined
-
 - name: Check if cd-rom is attached
   shell: >
     virsh domblklist "{{ vm_name }}" | grep "{{ cidata_iso_name }}"|cat
   register: check_cdrom
   changed_when: false
 
+- name: wait for cloud-init to initialize
+  pause:
+    seconds: 30
+  when: vm_name not in all_instances.list_vms
+
 - name: Eject CD-Rom
   shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
   when: check_cdrom.stdout != ""
-
-- name: include dhcp_to_static task
-  import_tasks: dhcp_to_static.yml
