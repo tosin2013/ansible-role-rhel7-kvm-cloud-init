@@ -23,6 +23,14 @@
     vm_mac: "{{ random_mac_address.stdout }}"
   when: vm_name not in all_instances.list_vms
 
+- debug:
+    msg: |
+      DEVICE={{ vm_nic }}
+      IPADDR={{ vm_ip }}
+      GATEWAY={{ vm_gateway }}
+      PREFIX={{ vm_mask_prefix }}
+    verbosity: 2
+
 - name: Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
