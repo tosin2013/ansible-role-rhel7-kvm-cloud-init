@@ -10,12 +10,11 @@
   rescue:
     - debug:
         msg: "could not get ip for a vm"
-#  when: vm_ipaddress | length == 0 or not static_ip|bool
 
 - name: setting vm_ip variable to {{ dhcp_vm_ip.stdout }} dhcp provided ip
   set_fact:
     vm_ip: "{{ dhcp_vm_ip.stdout }}"
-  when: vm_ipaddress | length == 0
+  when: vm_ipaddress | length == 0 or not static_ip|bool
 
 - set_fact:
     vm_ip_differ: false
