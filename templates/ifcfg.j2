@@ -3,11 +3,15 @@ DEVICE={{ vm_nic }}
 ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
-{% if vm_ip and vm_gateway and vm_mask_prefix %}
+{% if vm_ip and vm_gateway and vm_mask_prefix and static_ip|bool %}
 BOOTPROTO=none
+PEERDNS=yes
+NM_CONTROLLED=yes
 IPADDR={{ vm_ip }}
 GATEWAY={{ vm_gateway }}
 PREFIX={{ vm_mask_prefix }}
 {% else %}
 BOOTPROTO=dhcp
+PEERDNS=yes
+NM_CONTROLLED=yes
 {% endif %}

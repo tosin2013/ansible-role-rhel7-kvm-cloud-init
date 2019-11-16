@@ -26,30 +26,25 @@
   until: vm_shutdown_status.stdout.find('shutoff') != -1
   retries: 18
   delay: 3
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
 - name: remove cloud-init from {{ vm_name }}
   command: >
     virt-customize -a {{ os_disk }} --uninstall cloud-init
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
   
-- name: set VM static ip based on user provided value
+- name: deploy custom /etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   command: >
     virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   register: uploaded_static_ip
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
 - name: starting up {{ vm_name }}
   virt:
     name: "{{ vm_name }}"
     state: running
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
 - name: Gather VM ip networking info
   import_tasks: get_ip_info.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
 - name: Wait for network connectivty to {{ vm_name }}
   wait_for:
@@ -57,4 +52,12 @@
     port: 22
     search_regex: OpenSSH
     delay: 10
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
+
+- name: check if VM is reachable on known ip address
+  command: ping -c1 {{ vm_ip }}
+  register: ping_result
+  ignore_errors: yes
+
+- fail:
+    msg: VM is unreachable
+  when: ping_result is failed

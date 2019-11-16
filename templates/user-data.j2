@@ -59,7 +59,11 @@ users:
 manage_resolv_conf: true
 
 resolv_conf:
+{% if dns_servers[0] is defined and dns_servers[1] is defined %}
   nameservers: ['{{ dns_servers[0] }}', '{{ dns_servers[1] }}']
+{% else %}
+  nameservers: ['{{ dns_servers[0] }}']
+{% endif %}
   searchdomains: 
     - {{ search_domains[0] }}
   domain:  {{ vm_domain }}

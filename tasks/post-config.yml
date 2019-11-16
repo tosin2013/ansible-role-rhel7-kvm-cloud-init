@@ -49,9 +49,9 @@
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
-  when: (vm_in_inventory.rc == 0 and resolv_conf_entries.matched == 0)
+  when: (vm_in_inventory.rc == 0 and dns_lookup_result.rc == 2)
         or
-        (vm_in_inventory.rc == 0 and dns_lookup_result.rc == 2)
+        (vm_in_inventory.rc == 0 and resolv_conf_entries.matched == 0)
   delegate_to: "{{ vm_name }}"
 
 - name: ensure cloud-init is uninstalled when not using static ip configuration
