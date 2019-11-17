@@ -39,7 +39,6 @@
 - name: configure ssh public key
   command: >
     virt-customize -a {{ os_disk }} --ssh-inject {{ admin_user }}:file:{{ vm_public_key }}
-  when: (ping_result is failed and static_ip|bool) or vm_ip_differ|bool
 
 - name: starting up {{ vm_name }}
   virt:
