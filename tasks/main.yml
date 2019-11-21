@@ -58,7 +58,7 @@
 
 - name: refresh local static inventory
   meta: refresh_inventory
-  when: not vm_teardown and (update_inventory and vm_ip is defined)
+  #when: not vm_teardown and (update_inventory and vm_ip is defined)
 
 - name: check if VM is reachable on known ip address
   command: ping -c1 {{ vm_ip }}
