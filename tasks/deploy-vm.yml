@@ -115,7 +115,9 @@
   register: deploy_vm
   failed_when: "('Domain installation does not' in deploy_vm.stderr) or
                 ('failed to' in deploy_vm.stderr) or
-                ('ERROR' in deploy_vm.stderr)"
+                ('ERROR' in deploy_vm.stderr) or
+                ('usage' in deploy_vm.stderr)"
+
 - debug:
     msg: "{{ deploy_vm }}"
     verbosity: 2
