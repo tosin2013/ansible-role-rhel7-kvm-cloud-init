@@ -73,9 +73,16 @@
     os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
   when: os_disk_created.stat.exists
 
+- name: get os qcow device  disk name
+  shell: >
+    virt-filesystems --partitions --long
+    -a "{{ os_qcow_template }}" | awk '/partition /{print $1}'
+  register: os_disk_device
+  changed_when: false
+
 - name: Push base image onto vm operating system disk
   command: >
-    virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
+    virt-resize --expand "{{ os_disk_device.stdout }}" "{{ os_qcow_template }}" "{{ os_disk }}"
   register: resize_os_disk_results
   changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
   when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
