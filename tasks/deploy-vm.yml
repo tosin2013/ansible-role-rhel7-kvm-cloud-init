@@ -50,48 +50,43 @@
     mode: 0777
   register: meta_data_cloud_init
 
-- name: Create operating system disk for vm
-  command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
-  args:
-    creates: "{{ os_disk }}"
-  register: os_disk_results
+- name: Deploy VM disk image
+  block:
+    - name: Create operating system disk for vm
+      command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
+      args:
+        creates: "{{ os_disk }}"
+      register: os_disk_results
+
+    - name: Verify operating system disk for vm exists
+      stat:
+        path: "{{ os_disk }}"
+      register: os_disk_created
+
+    - name: get operating system disk virtual size
+      shell: >
+        qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
+      register: os_virtual_disk_size
+      changed_when: false
+
+    - name: set os disk size to human readable format
+      set_fact:
+        os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
+      when: os_disk_created.stat.exists
+
+    - name: Push base image onto vm operating system disk
+      command: >
+        virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
+      register: resize_os_disk_results
+      changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
+      when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
+
+    - name: Grow root file system to size of disk
+      command: "virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'"
+      register: grow_os_disk_results
+      changed_when: '"Finishing off" in grow_os_disk_results.stdout'
+      when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
   when: vm_name not in all_instances.list_vms
-
-- name: Verify operating system disk for vm exists
-  stat:
-    path: "{{ os_disk }}"
-  register: os_disk_created
-
-- name: get operating system disk virtual size
-  shell: >
-    qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
-  register: os_virtual_disk_size
-  changed_when: false
-
-- name: set os disk size to human readable format
-  set_fact:
-    os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
-  when: os_disk_created.stat.exists
-
-- name: get os qcow device  disk name
-  shell: >
-    virt-filesystems --partitions --long
-    -a "{{ os_qcow_template }}" | awk '/partition /{print $1}'
-  register: os_disk_device
-  changed_when: false
-
-- name: Push base image onto vm operating system disk
-  command: >
-    virt-resize --expand "{{ os_disk_device.stdout }}" "{{ os_qcow_template }}" "{{ os_disk }}"
-  register: resize_os_disk_results
-  changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
-  when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
-
-- name: Grow root file system to size of disk
-  command: "virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'"
-  register: grow_os_disk_results
-  changed_when: '"Finishing off" in grow_os_disk_results.stdout'
-  when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
 
 - name: Set the root password for the vm
   command: >
