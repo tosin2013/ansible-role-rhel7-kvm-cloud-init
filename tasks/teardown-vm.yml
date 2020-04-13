@@ -37,6 +37,7 @@
   command: "virsh undefine {{ vm_name }}"
   register: virsh_undefine_results
   changed_when: '"undefined" in virsh_undefine_results.stdout'
+  ignore_errors: true
   when: vm_name in all_instances.list_vms
 
 - name: remove vm data directory
