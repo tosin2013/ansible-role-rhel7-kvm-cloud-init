@@ -10,6 +10,9 @@ vm_domain: lab.example
 # Set to true to delete the VM
 vm_teardown: false
 
+# which release of rhel to deploy
+rhel_release: 7
+
 vm_public_key: "/home/{{ admin_user }}/.ssh/id_rsa.pub"
 vm_cpu: 2
 vm_memory: 2048

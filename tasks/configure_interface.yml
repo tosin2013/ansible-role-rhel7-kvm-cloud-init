@@ -29,16 +29,16 @@
 
 - name: remove cloud-init from {{ vm_name }}
   command: >
-    virt-customize -a {{ os_disk }} --uninstall cloud-init
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --uninstall cloud-init
   
 - name: deploy custom /etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   command: >
-    virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
   register: uploaded_static_ip
 
 - name: configure ssh public key
   command: >
-    virt-customize -a {{ os_disk }} --ssh-inject {{ admin_user }}:file:{{ vm_public_key }}
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --ssh-inject {{ admin_user }}:file:{{ vm_public_key }}
 
 - name: starting up {{ vm_name }}
   virt:
