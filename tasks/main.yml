@@ -18,14 +18,15 @@
         dest: /export/libguestfs
         remote_src: yes
       when: not libguestfs_app.stat.exists
-
-    # workaround for issue https://access.redhat.com/solutions/3914591
-    - name: deploy virt-customzie wrapper
-      template:
-        src: qubi-virt-customize.sh.j2
-        dest: /usr/local/bin/qubi-virt-customize
-        mode: 0755
   when: rhel_release == 8 and ansible_distribution_major_version == '7'
+
+# workaround for issue https://access.redhat.com/solutions/3914591
+- name: deploy virt-customzie wrapper
+  template:
+    src: qubi-virt-customize.sh.j2
+    dest: /usr/local/bin/qubi-virt-customize
+    mode: 0755
+
 
 - name: Get a list of all instances
   virt:

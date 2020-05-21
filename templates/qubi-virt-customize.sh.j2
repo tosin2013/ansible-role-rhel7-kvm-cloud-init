@@ -1,5 +1,7 @@
 #!/bin/bash
 
+{% if qcow_rhel_release == 8 %}
 export LIBGUESTFS_PATH="/export/libguestfs/appliance/"
+{% endif %}
 virt-customize "$@"
 exit $?
