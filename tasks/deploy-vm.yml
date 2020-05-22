@@ -83,7 +83,7 @@
         virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
       register: resize_os_disk_results
       changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
-      when: grow_fs|bool
+      when: grow_fs|bool and expand_os_disk|bool
 
     - name: Grow root file system to size to the requested disk size
       command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
