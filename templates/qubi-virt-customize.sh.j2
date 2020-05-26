@@ -1,0 +1,5 @@
+#!/bin/bash
+
+export LIBGUESTFS_PATH="/export/libguestfs/appliance/"
+virt-customize "$@"
+exit $?

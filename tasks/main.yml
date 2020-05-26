@@ -1,5 +1,32 @@
 ---
 # tasks file for ansible-role-rhel7-kvm-cloud-init
+- name: setup libguestfs to support deploying rhel8 vm on a rhel7 host
+  block:
+    - name: check for presense of libguestfs appliance
+      stat:
+        path: /export/libguestfs/appliance/kernel
+      register: libguestfs_app
+
+    - name: ensure the direct /export/libguestfs exist
+      file:
+        path: /export/libguestfs
+        state: directory
+
+    - name: ensure libguestfs appliance is present
+      unarchive:
+        src: http://download.libguestfs.org/binaries/appliance/appliance-1.40.1.tar.xz
+        dest: /export/libguestfs
+        remote_src: yes
+      when: not libguestfs_app.stat.exists
+
+    # workaround for issue https://access.redhat.com/solutions/3914591
+    - name: deploy virt-customzie wrapper
+      template:
+        src: qubi-virt-customize.sh.j2
+        dest: /usr/local/bin/qubi-virt-customize
+        mode: 0755
+  when: rhel_release == 8 and ansible_distribution_major_version == '7'
+
 - name: Get a list of all instances
   virt:
     command: list_vms

@@ -5,23 +5,23 @@
   when: vm_ipaddress is defined and vm_ipaddress | length != 0
 
 # This requires a later version ansible
-#- name: generate random mac address when vm_ip defined
-#  set_fact:
-#    vm_mac: "{{ '52:54:00' | random_mac }}"
-#  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+- name: generate random mac address when vm_ip defined
+  set_fact:
+    vm_mac: "{{ '52:54:00' | random_mac }}"
+  when: vm_name not in all_instances.list_vms
 
 # This can be deleted when using a later version of ansible
-- name: generate random mac address
-  shell: >
-    echo 52:54:00:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]
-  register: random_mac_address
-  changed_when: false
-  when: vm_name not in all_instances.list_vms
+#- name: generate random mac address
+#  shell: >
+#    echo 52:54:00:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]
+#  register: random_mac_address
+#  changed_when: false
+#  when: vm_name not in all_instances.list_vms
 
-- name: set vm_mac variable
-  set_fact:
-    vm_mac: "{{ random_mac_address.stdout }}"
-  when: vm_name not in all_instances.list_vms
+#- name: set vm_mac variable
+#  set_fact:
+#    vm_mac: "{{ random_mac_address.stdout }}"
+#  when: vm_name not in all_instances.list_vms
 
 - name: Check if qcow OS image template exist
   stat:
@@ -74,26 +74,37 @@
         os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
       when: os_disk_created.stat.exists
 
+    - name: set variable grow_fs
+      set_fact:
+        grow_fs: "{{ true if os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int else false }}"
+
     - name: Push base image onto vm operating system disk
       command: >
         virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
       register: resize_os_disk_results
       changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
-      when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
+      when: grow_fs|bool
 
-    - name: Grow root file system to size of disk
-      command: "virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'"
+    - name: Grow root file system to size to the requested disk size
+      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
       register: grow_os_disk_results
       changed_when: '"Finishing off" in grow_os_disk_results.stdout'
-      when: os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int
+      when: grow_fs
   when: vm_name not in all_instances.list_vms
 
-- name: Set the root password for the vm
+- name: Set the root password for the RHEL7 vm
   command: >
-    virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
   register: mod_os_disk_results
   changed_when: '"Finishing off" in mod_os_disk_results.stdout'
   when: grow_os_disk_results.changed
+
+- name: Set the root password for the vm RHEL8 vm
+  command: >
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
+  register: mod_os_disk_results
+  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
+  when: grow_os_disk_results.changed and rhel_release == 8
 
 - name: check for existing cloud init iso
   stat:

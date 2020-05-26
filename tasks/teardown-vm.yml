@@ -22,7 +22,7 @@
 
 - name: ensure {{ vm_name }} is unregistered from RHSM
   command: >
-    virt-customize -a {{ os_disk }} --run-command 'subscription-manager unregister'
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'subscription-manager unregister'
   ignore_errors: true
   when: os_disk_exist.stat.exists
 
