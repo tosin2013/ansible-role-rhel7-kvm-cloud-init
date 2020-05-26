@@ -27,7 +27,6 @@
     dest: /usr/local/bin/qubi-virt-customize
     mode: 0755
 
-
 - name: Get a list of all instances
   virt:
     command: list_vms

@@ -1,0 +1,3 @@
+---
+environment:
+  LIBGUESTFS_PATH: "/export/libguestfs/appliance/"
