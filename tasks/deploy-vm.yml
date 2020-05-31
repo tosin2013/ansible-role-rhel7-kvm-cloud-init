@@ -57,6 +57,14 @@
       args:
         creates: "{{ os_disk }}"
       register: os_disk_results
+      when: expand_os_disk|bool
+
+    - name: Copy {{ cloud_init_vm_image }} to {{ os_disk }}
+      command: "cp {{ os_qcow_template }} {{ os_disk }}"
+      args:
+        creates: "{{ os_disk }}"
+      register: os_disk_results
+      when: not expand_os_disk|bool
 
     - name: Verify operating system disk for vm exists
       stat:
@@ -89,7 +97,7 @@
       command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
       register: grow_os_disk_results
       changed_when: '"Finishing off" in grow_os_disk_results.stdout'
-      when: grow_fs
+      when: grow_fs and expand_os_disk|bool
   when: vm_name not in all_instances.list_vms
 
 - name: Set the root password for the RHEL7 vm
