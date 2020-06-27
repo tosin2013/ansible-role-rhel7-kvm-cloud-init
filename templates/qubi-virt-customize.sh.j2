@@ -1,6 +1,6 @@
 #!/bin/bash
 
-{% if qcow_rhel_release == 8 %}
+{% if qcow_rhel_release == 8 and ansible_distribution_major_version == 7 %}
 export LIBGUESTFS_PATH="/export/libguestfs/appliance/"
 {% endif %}
 virt-customize "$@"
