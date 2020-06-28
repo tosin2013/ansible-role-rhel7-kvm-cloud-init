@@ -38,7 +38,7 @@
   import_tasks: teardown-vm.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: vm_teardown
+  when: vm_teardown|bool
 
 - name: copy scripts to KVM host
   copy:
@@ -50,7 +50,7 @@
     - getvmip
     - attach-libvirt-disk
   delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
+  when: not vm_teardown|bool
 
 - name: Create VM data dir to store vm information
   file:
@@ -59,19 +59,19 @@
     force: yes
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
+  when: not vm_teardown|bool
 
 - name: Deploy Base VM
   import_tasks: deploy-vm.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
+  when: not vm_teardown|bool
 
 - name: Gather VM ip networking info
   import_tasks: get_ip_info.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
+  when: not vm_teardown|bool
 
 - name: add {{ vm_name }} to ansible inventory inventory
   lineinfile:
@@ -81,11 +81,11 @@
     insertafter: '^\[{{ inventory_group }}\]'
     state: present
   register: vm_inventory_status
-  when: not vm_teardown and (update_inventory and vm_ip is defined)
+  when: not vm_teardown|bool and (update_inventory and vm_ip is defined)
 
 - name: refresh local static inventory
   meta: refresh_inventory
-  #when: not vm_teardown and (update_inventory and vm_ip is defined)
+  #when: not vm_teardown|bool and (update_inventory and vm_ip is defined)
 
 - name: check if VM is reachable on known ip address
   command: ping -c1 {{ vm_ip }}
@@ -96,13 +96,13 @@
   import_tasks: configure_interface.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown and vm_name not in all_instances.list_vms
+  when: not vm_teardown|bool and vm_name not in all_instances.list_vms
         or
-        not vm_teardown and ping_result is failed
+        not vm_teardown|bool and ping_result is failed
         or
-        not vm_teardown and vm_ip_differ|bool
+        not vm_teardown|bool and vm_ip_differ|bool
 
 - name: run post configuration
   import_tasks: post-config.yml
   become: yes
-  when: not vm_teardown
+  when: not vm_teardown|bool
