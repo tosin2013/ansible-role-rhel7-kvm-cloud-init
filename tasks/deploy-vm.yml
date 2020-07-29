@@ -50,6 +50,15 @@
     mode: 0777
   register: meta_data_cloud_init
 
+- name: show qcow image
+  debug:
+    verbosity: 2
+    msg:
+      - "cloud_init_vm_image: {{ cloud_init_vm_image }}"
+      - "os_disk: {{ os_disk }}"
+      - "vm_root_disk_size: {{ vm_root_disk_size }}"
+      - "os_qcow_template: {{ os_qcow_template }}"
+
 - name: Deploy VM disk image
   block:
     - name: Create operating system disk for vm
