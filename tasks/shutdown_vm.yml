@@ -1,18 +1,4 @@
 ---
-- name: check if VM is reachable on known ip address
-  command: ping -c1 {{ vm_ip }}
-  register: ping_result
-  ignore_errors: yes
-
-- debug:
-    msg: |
-      DEVICE={{ vm_nic }}
-      HWADDR={{ vm_mac }}
-      IPADDR={{ vm_ip }}
-      GATEWAY={{ vm_gateway }}
-      PREFIX={{ vm_mask_prefix }}
-    verbosity: 2
-    
 - name: shutting down {{ vm_name }} to run virt-customize
   shell: |
     result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')

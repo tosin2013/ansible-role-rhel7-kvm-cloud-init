@@ -1,24 +1,26 @@
 ---
+- name: Get a list of all instances
+  virt:
+    command: list_vms
+    state: running
+  register: running_instances
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+
+- name: find all disk for the vm
+  find:
+    paths: "{{ kvm_vm_pool_dir}}/"
+    patterns: "{{ vm_name }}_vd*.*"
+  register: vm_disks_all
+
 - name: check if OS disk exist
   stat:
     path: "{{ os_disk }}"
   register: os_disk_exist
 
-- name: shutting down {{ vm_name }} to run virt-customize
-  shell: |
-    result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
-    if [ $result == 'shut' ];
-    then
-       echo "shutoff"
-    else
-      virsh shutdown {{ vm_name }};
-    fi
-  register: vm_shutdown_status
-  until: vm_shutdown_status.stdout.find('shutoff') != -1
-  retries: 18
-  delay: 3
-  ignore_errors: true
-  when: os_disk_exist.stat.exists
+- name: Shutdown VM
+  import_tasks: shutdown_vm.yml
+  when: vm_name in running_instances.list_vms
 
 - name: ensure {{ vm_name }} is unregistered from RHSM
   command: >
@@ -27,29 +29,16 @@
   when: os_disk_exist.stat.exists
 
 - name: Destroy vm
-  command: "virsh destroy {{ vm_name }}"
+  virt:
+    name: "{{ vm_name }}"
+    command: undefine
   register: virsh_destroy_results
-  changed_when: '"destroyed" in virsh_destroy_results.stdout'
-  ignore_errors: true
-  when: vm_name in all_instances.list_vms and vm_shutdown_status is not defined
-
-- name: Undefine vm
-  command: "virsh undefine {{ vm_name }}"
-  register: virsh_undefine_results
-  changed_when: '"undefined" in virsh_undefine_results.stdout'
-  ignore_errors: true
   when: vm_name in all_instances.list_vms
 
 - name: remove vm data directory
   file:
     path: "{{ vm_data_dir }}/{{ vm_name }}"
     state: absent
-
-- name: find all disk for the vm
-  find:
-    paths: "{{ kvm_vm_pool_dir}}/"
-    patterns: "{{ vm_name }}_vd*.*"
-  register: vm_disks_all
 
 - name: delete all vm disks
   file:
