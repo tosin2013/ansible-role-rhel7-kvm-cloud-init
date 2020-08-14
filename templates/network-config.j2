@@ -1,0 +1,16 @@
+version: 2
+ethernets:
+  eth0:
+     addresses: 
+       - {{ vm_ipaddress }}/{{ vm_mask_prefix }}
+     gateway4: {{ vm_gateway }}
+     nameservers:
+{% if dns_servers|length > 1 %}
+       addresses: 
+         - {{ dns_servers[0] }} 
+         - {{ dns_servers[1] }}
+{% else %}
+       addresses: 
+         - {{ dns_servers[0] }} 
+{% endif %}
+     search: [ {{ vm_domain }} ]

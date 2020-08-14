@@ -48,13 +48,16 @@ packages:
 
 # Users
 users:
-  - default
   - name: {{ admin_user }}
-    ssh_pwauth: True
-    ssh_authorized_keys:
-    - {{ vm_public_key }}
-    groups: wheel,adm,systemd-journal
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    groups: wheel,adm,systemd-journal
+    home: /home/{{ admin_user }}
+    shell: /bin/bash
+    lock_passwd: false
+    ssh_pwauth: True
+    passwd: {{ admin_user_password | password_hash('sha512') }}
+    ssh_authorized_keys:
+      - "{{ lookup('file', vm_public_key) }}"
 
 manage_resolv_conf: true
 
@@ -75,25 +78,12 @@ resolv_conf:
 ssh_pwauth: True
 chpasswd:
   list: |
-    {{ admin_user }}:{{ admin_user_password }}
-    root:{{ kvm_vm_root_pwd }}
+    root:{{ kvm_vm_root_pwd | password_hash('sha512') }}
   expire: False
-
-# start qemu-guest-agent
-runcmd:
-  - [systemctl, start, qemu-guest-agent]
-
-# enable qemu-guest-agent
-runcmd:
-  - [systemctl, enable, qemu-guest-agent]
-
-# Remove cloud-init when finished with it
-runcmd:
-  - [ yum, -y, remove, cloud-init ]
 
 # Configure where output will go
 output:
-  all: ">> /var/log/cloud-init.log"
+  all: ">> {{ vm_data_dir }}/{{ vm_name }}/cloud-init.log"
 
 # configure interaction with ssh server
 ssh_svcname: ssh
@@ -104,4 +94,19 @@ ssh_genkeytypes: ['rsa', 'ecdsa']
 # in cloud.cfg in the template (which is ctos for CentOS cloud images)
 ssh_authorized_keys:
   - {{ vm_public_key }}
+
+
+# enable qemu-guest-agent
+runcmd:
+  - [systemctl, enable, qemu-guest-agent]
+
+# manually set BOOTPROTO for static IP
+# cloud-config related bug?
+runcmd:
+    - [ sh, -c, 'sed -i s/BOOTPROTO=dhcp/BOOTPROTO=static/ /etc/sysconfig/network-scripts/ifcfg-eth0' ]
+    - [ sh, -c, 'ifdown eth0 && sleep 1 && ifup eth0 && sleep 1 && ip a' ]
+
+# Remove cloud-init when finished with it
+runcmd:
+  - [ yum, -y, remove, cloud-init ]
 

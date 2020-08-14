@@ -1,0 +1,33 @@
+---
+- name: Shutdown VM
+  import_tasks: shutdown_vm.yml
+  when: not vm_teardown|bool and vm_name not in all_instances.list_vms
+        or
+        not vm_teardown|bool and ping_result is failed
+        or
+        not vm_teardown|bool and vm_ip_differ|bool
+
+- name: deploy custom /etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  command: >
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  register: uploaded_static_ip
+  when: not vm_teardown|bool and vm_name not in all_instances.list_vms
+        or
+        not vm_teardown|bool and ping_result is failed
+        or
+        not vm_teardown|bool and vm_ip_differ|bool
+
+#    - name: Wait for network connectivty to {{ vm_name }}
+#      wait_for:
+#        host: "{{ vm_ip }}"
+#        port: 22
+#        search_regex: OpenSSH
+#        delay: 10
+#
+- name: startup VM
+  import_tasks: startup_vm.yml
+  when: not vm_teardown|bool and vm_name not in all_instances.list_vms
+        or
+        not vm_teardown|bool and ping_result is failed
+        or
+        not vm_teardown|bool and vm_ip_differ|bool

@@ -11,7 +11,15 @@ vm_domain: lab.example
 vm_teardown: false
 
 # which release of rhel to deploy
+# supports 7 or 8
 rhel_release: 7
+
+# os variant you are deploying
+# see options by running: osinfo-query os | awk '/rhel[7-8]/ {print $1}'
+os_variant: rhel7
+
+# Local to storage VM qcow disk
+kvm_vm_pool_dir: "/var/lib/libvirt/images"
 
 # set to yes to grow the primary disk to your specefied size, default is 10G
 expand_os_disk: yes
@@ -21,7 +29,6 @@ vm_cpu: 2
 vm_memory: 2048
 vm_root_disk_size: 20G
 vm_libvirt_net: default
-os_variant: rhel7
 inventory_file: ""
 inventory_group: ""
 #default RHEL user and password
@@ -58,9 +65,10 @@ extra_storage:
 #################
 # SAFE DEFAULTS #
 #################
-kvm_vm_pool_dir: "/var/lib/libvirt/images"
 cloud_init_user_data: "{{ vm_data_dir }}/{{ vm_name }}/user-data"
 cloud_init_meta_data: "{{ vm_data_dir }}/{{ vm_name }}/meta-data"
+cloud_init_network_config: "{{ vm_data_dir }}/{{ vm_name }}/network-config"
+cloud_init_configs: "{{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
 cidata_iso_name: cidata.iso
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
 vm_data_dir: "/var/lib/vmdata"
@@ -82,3 +90,8 @@ extra_disk_name: "{{ kvm_vm_pool_dir }}/{{ vm_name }}"
 disk_sequence: "bcdefghijklmnopqrstuvwxyz"
 vm_resolv_conf: "{{ vm_data_dir }}/{{ vm_name }}/resolv.conf"
 
+
+#################
+# REQUIRED      #
+#################
+required_pacakges: cloud-init

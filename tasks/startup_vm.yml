@@ -1,0 +1,26 @@
+---
+- name: starting up {{ vm_name }}
+  virt:
+    name: "{{ vm_name }}"
+    state: running
+
+- block:
+    - name: try to discover {{ vm_name }} ip address
+      command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+      until: dhcp_vm_ip.stdout != ""
+      retries: 30
+      delay: 1
+      register: dhcp_vm_ip
+      changed_when: False
+
+    - name: check if VM is reachable on known ip address
+      command: ping -c1 {{ vm_ip }}
+      register: ping_result
+      ignore_errors: yes
+
+    - fail:
+        msg: VM is unreachable
+      when: ping_result is failed
+  rescue:
+    - debug:
+        msg: "could not get ip for a vm"

@@ -10,19 +10,6 @@
     vm_mac: "{{ '52:54:00' | random_mac }}"
   when: vm_name not in all_instances.list_vms
 
-# This can be deleted when using a later version of ansible
-#- name: generate random mac address
-#  shell: >
-#    echo 52:54:00:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]:$[RANDOM%10]$[RANDOM%10]
-#  register: random_mac_address
-#  changed_when: false
-#  when: vm_name not in all_instances.list_vms
-
-#- name: set vm_mac variable
-#  set_fact:
-#    vm_mac: "{{ random_mac_address.stdout }}"
-#  when: vm_name not in all_instances.list_vms
-
 - name: Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
@@ -36,7 +23,15 @@
          or copy {{ cloud_init_vm_image }} to {{ os_qcow_template }}.
   when: cloud_init_image_exist.stat.exists == False
 
-- name: Copy cloud-init user data
+- name: Generate cloud-init static network config
+  template:
+    src: network-config.j2
+    dest: "{{ cloud_init_network_config }}"
+    mode: 0777
+  register: user_data_cloud_init
+  when: static_ip|bool
+
+- name: Generate cloud-init user data
   template:
     src: user-data.j2
     dest: "{{ cloud_init_user_data }}"
@@ -52,8 +47,7 @@
 
 - name: show qcow image
   debug:
-    verbosity: 2
-    msg:
+    msg: 
       - "cloud_init_vm_image: {{ cloud_init_vm_image }}"
       - "os_disk: {{ os_disk }}"
       - "vm_root_disk_size: {{ vm_root_disk_size }}"
@@ -109,27 +103,25 @@
       when: grow_fs and expand_os_disk|bool
   when: vm_name not in all_instances.list_vms
 
-- name: Set the root password for the RHEL7 vm
-  command: >
-    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
-  register: mod_os_disk_results
-  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
-  when: grow_os_disk_results.changed
-
-- name: Set the root password for the vm RHEL8 vm
-  command: >
-    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
-  register: mod_os_disk_results
-  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
-  when: grow_os_disk_results.changed and rhel_release == 8
+  #- name: Set VM root password
+  #  command: >
+  #    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --root-password password:{{ kvm_vm_root_pwd }}
+  #  register: mod_os_disk_results
+  #  changed_when: '"Finishing off" in mod_os_disk_results.stdout'
+  #  when: grow_os_disk_results.changed
 
 - name: check for existing cloud init iso
   stat:
     path: "{{ cloud_init_iso_image }}"
   register: cloud_init_iso
 
+- name: set cloud-init config files
+  set_fact:
+    cloud_init_configs: "{{ cloud_init_user_data }} {{ cloud_init_meta_data }} {{ cloud_init_network_config }}"
+  when: static_ip|bool
+
 - name: Create iso image for cloud init
-  shell: "genisoimage -input-charset utf-8 -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
+  shell: "genisoimage -input-charset utf-8 -output {{ cloud_init_iso_image }} -volid cidata -joliet -r {{ cloud_init_configs }}"
   when: user_data_cloud_init.changed or cloud_init_iso.stat.exists == False
 
 - name: generate virt-install command arguments
@@ -192,9 +184,16 @@
 
 - name: wait for cloud-init to initialize
   pause:
-    seconds: 30
+    seconds: 50
   when: vm_name not in all_instances.list_vms
 
 - name: Eject CD-Rom
   shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
   when: check_cdrom.stdout != ""
+
+- name: set dhcp provided ip address as static
+  import_tasks: set-dhcp-to-static.yml
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+  when: set_dhcp_static|bool
+

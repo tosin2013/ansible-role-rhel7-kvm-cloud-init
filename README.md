@@ -1,7 +1,7 @@
 Deploy Red Hat KVM Image using cloud-init
 =========
 
-The following role will deploy a Red Hat Enterprise Linux 7.x KVM.
+The following role will deploy a Red Hat Enterprise Linux 7/8 virtual machine from a qcow image.
 
 Requirements
 ------------

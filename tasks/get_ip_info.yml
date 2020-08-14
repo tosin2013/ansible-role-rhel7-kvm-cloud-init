@@ -1,15 +1,6 @@
 ---
-- block:
-    - name: try to discover {{ vm_name }} ip address
-      command: "/usr/local/bin/getvmip -r {{ vm_name }}"
-      until: dhcp_vm_ip.stdout != ""
-      retries: 30
-      delay: 1
-      register: dhcp_vm_ip
-      changed_when: False
-  rescue:
-    - debug:
-        msg: "could not get ip for a vm"
+- name: startup VM
+  import_tasks: startup_vm.yml
 
 - name: setting vm_ip variable to {{ dhcp_vm_ip.stdout }} dhcp provided ip
   set_fact:
@@ -66,7 +57,6 @@
   set_fact:
     vm_mac: "{{ vm_mac_result.stdout }}"
   when: vm_name in all_instances.list_vms and vm_mac is not defined
-
 
 - name: generate {{ vm_name }} ifcfg interface template
   template:
