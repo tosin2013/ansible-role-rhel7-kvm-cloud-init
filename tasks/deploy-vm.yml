@@ -191,6 +191,24 @@
   shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
   when: check_cdrom.stdout != ""
 
+- name: try to discover {{ vm_name }} ip address
+  command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+  until: dhcp_vm_ip.stdout != ""
+  ignore_errors: yes
+  retries: 30
+  delay: 1
+  register: dhcp_vm_ip
+  changed_when: False
+
+- name: set ip address
+  set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+  when: not static_ip|bool
+
+- fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0
+
 - name: set dhcp provided ip address as static
   import_tasks: set-dhcp-to-static.yml
   become: yes

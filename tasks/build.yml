@@ -50,11 +50,11 @@
   become: yes
   delegate_to: "{{ kvm_install_host }}"
 
-- name: Gather VM ip networking info
-  import_tasks: get_ip_info.yml
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: not static_ip|bool
+#- name: Gather VM ip networking info
+#  import_tasks: get_ip_info.yml
+#  become: yes
+#  delegate_to: "{{ kvm_install_host }}"
+#  when: not static_ip|bool
 
 - name: set vm ip variable to the one provided by the user
   set_fact:
@@ -70,7 +70,6 @@
     state: present
   register: vm_inventory_status
   when: update_inventory and vm_ip is defined
-
 
 - name: check if VM is reachable on known ip address
   command: ping -c1 {{ vm_ip }}

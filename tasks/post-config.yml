@@ -43,7 +43,7 @@
   when: ping_result is not failed
   delegate_to: "{{ vm_name }}"
 
-- name: ensure cloud-init is uninstalled when not using static ip configuration
+- name: ensure cloud-init is uninstalled
   yum:
     name: cloud-init
     state: absent
