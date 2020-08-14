@@ -213,5 +213,5 @@
   import_tasks: set-dhcp-to-static.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
-  when: set_dhcp_static|bool
+  when: set_dhcp_static|bool or vm_ipaddress | length != 0
 

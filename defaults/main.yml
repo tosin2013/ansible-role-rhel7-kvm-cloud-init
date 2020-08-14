@@ -42,6 +42,7 @@ vm_gateway: ""
 vm_ipaddress: ""
 vm_mask: ""
 vm_nic: "eth0"
+vm_mask_prefix: 24
 
 #RHEL Subscription Info
 rhsm_username: ""
