@@ -36,8 +36,13 @@ admin_user: admin
 admin_user_password: ""
 kvm_vm_root_pwd: ""
 
-# to provide static ip info set static_ip to true along and the relevant details
-static_ip: False
+## When this var is set to true and the host gets it's ip address from
+## dhcp. It was take that IP address and configure the host to use static
+## ip address assignment. It's recommended that you create a DHCP reservation
+## for this host to ensure the DHCP lease does not expire and get consume by 
+## another host on the network.
+convert_dhcp_to_static: true
+
 vm_gateway: ""
 vm_ipaddress: ""
 vm_mask: ""

@@ -8,22 +8,31 @@
   become: yes
   delegate_to: "{{ kvm_install_host }}"
 
-- name: teardown the VM
+- name: run tasks to teardown the VM
   import_tasks: teardown-vm.yml
   become: yes
   delegate_to: "{{ kvm_install_host }}"
   when: vm_teardown|bool
 
-- name: build the VM
-  import_tasks: build.yml
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
+- name: Deploy the VM
   when: not vm_teardown|bool
-
-- name: Refresh inventory to ensure new instances exist in inventory
-  meta: refresh_inventory
-
-- name: run post configuration
-  import_tasks: post-config.yml
   become: yes
-  when: not vm_teardown|bool
+  block:
+    - name: INCLUDE TASKS from build_vm_config.yml to build the VM deployment config
+      import_tasks: build_vm_config.yml
+      delegate_to: "{{ kvm_install_host }}"
+      
+    - name: INCLUDE TASKS from deploy_vm.yml to deploy the vm
+      import_tasks: deploy_vm.yml
+      delegate_to: "{{ kvm_install_host }}"
+
+    - name: INCLUDE TASKS from configure_vm.yml to configure the vm
+      import_tasks: configure_vm.yml
+      delegate_to: "{{ kvm_install_host }}"
+    
+    - name: Refresh inventory to ensure new instances exist in inventory
+      meta: refresh_inventory
+    
+    - name: run post configuration
+      import_tasks: post_config.yml
+      become: yes

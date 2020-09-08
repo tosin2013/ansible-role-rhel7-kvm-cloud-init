@@ -3,7 +3,7 @@ DEVICE={{ vm_nic }}
 ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
-{% if vm_ip and vm_gateway and vm_mask_prefix and set_dhcp_static|bool %}
+{% if vm_ip and vm_gateway and vm_mask_prefix and convert_dhcp_to_static|bool %}
 BOOTPROTO=none
 PEERDNS=yes
 NM_CONTROLLED=yes
