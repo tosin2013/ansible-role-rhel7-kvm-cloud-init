@@ -1,11 +1,11 @@
 ---
-- name: starting up {{ vm_name }}
+- name: START-UP-VM starting up {{ vm_name }}
   virt:
     name: "{{ vm_name }}"
     state: running
 
 - block:
-    - name: check if VM is reachable on known ip address
+    - name: START-UP-VM check if VM is reachable on known ip address
       command: ping -c1 {{ vm_ip }}
       register: ping_result
       ignore_errors: yes

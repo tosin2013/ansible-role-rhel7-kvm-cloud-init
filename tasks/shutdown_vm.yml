@@ -1,5 +1,5 @@
 ---
-- name: shutting down {{ vm_name }} to run virt-customize
+- name: SHUTDOWN-VM shutting down {{ vm_name }} to run virt-customize
   shell: |
     result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
     if [ $result == 'shut' ];

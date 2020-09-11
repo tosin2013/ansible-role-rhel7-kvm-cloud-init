@@ -7,6 +7,7 @@
   register: all_instances
   become: yes
   delegate_to: "{{ kvm_install_host }}"
+  tags: always
 
 - name: run tasks to teardown the VM
   import_tasks: teardown-vm.yml

@@ -1,46 +1,38 @@
 ---
-- name: Get a list of all instances
-  virt:
-    command: list_vms
-    state: running
-  register: running_instances
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: find all disk for the vm
+- name: TEAR-DOWN-VM find all disk for the vm
   find:
     paths: "{{ kvm_vm_pool_dir}}/"
     patterns: "{{ vm_name }}_vd*.*"
   register: vm_disks_all
 
-- name: check if OS disk exist
+- name: TEAR-DOWN-VM check if OS disk exist
   stat:
     path: "{{ os_disk }}"
   register: os_disk_exist
 
-- name: Shutdown VM
+- name: TEAR-DOWN-VM Shutdown {{ vm_name }}
   import_tasks: shutdown_vm.yml
   when: vm_name in running_instances.list_vms
 
-- name: ensure {{ vm_name }} is unregistered from RHSM
+- name: TEAR-DOWN-VM ensure {{ vm_name }} is unregistered from RHSM
   command: >
     /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'subscription-manager unregister'
   ignore_errors: true
   when: os_disk_exist.stat.exists
 
-- name: Destroy vm
+- name: TEAR-DOWN-VM Destroy {{ vm_name }}
   virt:
     name: "{{ vm_name }}"
     command: undefine
   register: virsh_destroy_results
   when: vm_name in all_instances.list_vms
 
-- name: remove vm data directory
+- name: TEAR-DOWN-VM remove {{ vm_name }} data directory {{ vm_data_dir }}/{{ vm_name }}
   file:
     path: "{{ vm_data_dir }}/{{ vm_name }}"
     state: absent
 
-- name: delete all vm disks
+- name: TEAR-DOWN-VM delete all disks for {{ vm_name }}
   file:
     path: "{{ item.path }}"
     state: absent

@@ -29,10 +29,10 @@ expand_os_disk: yes
 ## Set the values to use static ip
 vm_gateway: ""
 vm_ipaddress: ""
-vm_mask: ""
+vm_mask_prefix: ""
+vm_mac: ""
 ## the kvm nic is usually always eth
 vm_nic: "eth0"
-vm_mask_prefix:
 ## Extra disk for VMs, set enable to true along with size
 extra_storage:
   - size: 80G
