@@ -1,0 +1,122 @@
+---
+- name: DEPLOY_VM {{ vm_name }} disk image
+  block:
+    - name: DEPLOY_VM Create operating system disk for {{ vm_name }}
+      command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
+      args:
+        creates: "{{ os_disk }}"
+      register: os_disk_results
+      when: expand_os_disk|bool
+
+    - name: DEPLOY_VM Copy {{ cloud_init_vm_image }} to {{ os_disk }}
+      command: "cp {{ os_qcow_template }} {{ os_disk }}"
+      args:
+        creates: "{{ os_disk }}"
+      register: os_disk_results
+      when: not expand_os_disk|bool
+
+    - name: DEPLOY_VM ensure {{ os_disk }} exist
+      stat:
+        path: "{{ os_disk }}"
+      register: os_disk_created
+
+    - name: DEPLOY_VM get {{ vm_name }} primary disk virtual size
+      shell: >
+        qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
+      register: os_virtual_disk_size
+      changed_when: false
+
+    - name: DEPLOY_VM set os disk size to human readable format
+      set_fact:
+        os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
+      when: os_disk_created.stat.exists
+
+    - name: DEPLOY_VM evaluate if {{ vm_name }} primary disk size should be increase
+      set_fact:
+        grow_fs: "{{ true if os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int else false }}"
+
+    - name: DEPLOY_VM grow {{ vm_name }} primary disk
+      command: >
+        virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
+      register: resize_os_disk_results
+      changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
+      when: grow_fs|bool and expand_os_disk|bool
+
+    - name: Grow root file system to size to the requested disk size
+      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
+      register: grow_os_disk_results
+      changed_when: '"Finishing off" in grow_os_disk_results.stdout'
+      when: grow_fs and expand_os_disk|bool
+  when: vm_name not in all_instances.list_vms
+
+- name: DEPLOY_VM deploy VM instance
+  command: "bash -x {{ vm_virtinstall_script }}"
+  when: vm_name not in all_instances.list_vms
+  register: deploy_vm
+  failed_when: "('Domain installation does not' in deploy_vm.stderr) or
+                ('failed to' in deploy_vm.stderr) or
+                ('ERROR' in deploy_vm.stderr) or
+                ('usage' in deploy_vm.stderr)"
+
+- debug:
+    msg: "{{ deploy_vm }}"
+    verbosity: 2
+
+- name: DEPLOY_VM create extra qcow disk
+  vars:
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
+  command: >
+    dd if=/dev/zero of={{ disk_name }} bs=1 count=0  seek={{ item.size }}
+  args:
+    creates: "{{ disk_name }}"
+  loop: "{{ extra_storage }}"
+  loop_control:
+    index_var: count
+    label: "{{ disk_name }}"
+  when: item.enable
+  register: extra_disk_created
+
+- debug:
+    msg: "{{ extra_disk_created }}"
+    verbosity: 2
+
+- name: DEPLOY_VM Attach External Disk
+  vars:
+    disk_name: "{{ extra_disk_name }}_vd{{ disk_sequence[item | int + count ] }}.qcow2"
+    disk: "vd{{ disk_sequence[item | int + count ] }}"
+  command: >
+    /usr/local/bin/attach-libvirt-disk "{{ vm_name }}" "{{ disk_name }}" "{{ disk }}"
+  register: attached_disk
+  loop: "{{ extra_storage }}"
+  loop_control:
+    index_var: count
+    label: "{{ disk_name }}"
+  when: item.enable
+  changed_when: '"Disk attached successfully" in attached_disk.stdout'
+
+- name: DEPLOY_VM Check if cd-rom is attached
+  shell: >
+    virsh domblklist "{{ vm_name }}" | grep "{{ cidata_iso_name }}"|cat
+  register: check_cdrom
+  changed_when: false
+
+- name: DEPLOY_VM wait for cloud-init to initialize
+  pause:
+    seconds: 50
+  when: vm_name not in all_instances.list_vms
+
+- name: DEPLOY_VM Eject CD-Rom
+  shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
+  when: check_cdrom.stdout != ""
+
+- name: DEPLOY_VM try to discover {{ vm_name }} ip address
+  command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+  until: dhcp_vm_ip.stdout != ""
+  ignore_errors: yes
+  retries: 30
+  delay: 1
+  register: dhcp_vm_ip
+  changed_when: False
+  #when: not convert_dhcp_to_static|bool
+
+

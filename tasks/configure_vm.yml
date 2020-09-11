@@ -1,0 +1,44 @@
+---
+- name: CONFIGURE_VM show discovered ip address
+  debug:
+    var: dhcp_vm_ip
+
+- name: CONFIGURE_VM show convert_dhcp_to_static variable
+  debug:
+    var: convert_dhcp_to_static
+
+- name: CONFIGURE_VM set vm_ip var to ip dhcp provided ip address
+  set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+  when: convert_dhcp_to_static|bool
+
+- name: CONFIGURE_VM ensure the var vm_ip is defined
+  fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0
+
+- name: CONFIGURE_VM configure {{ vm_name }} to use dhcp provided ip address as static ip config
+  import_tasks: set-dhcp-to-static.yml
+  become: yes
+  delegate_to: "{{ kvm_install_host }}"
+  when: convert_dhcp_to_static|bool or vm_ipaddress | length != 0
+
+- name: CONFIGURE_VM set vm ip variable to the one provided by the user
+  set_fact:
+    vm_ip: "{{ vm_ipaddress }}"
+  when: not convert_dhcp_to_static|bool
+
+- name: CONFIGURE_VM add {{ vm_name }} to ansible inventory inventory
+  lineinfile:
+    path: "{{ inventory_file }}"
+    regexp: "^{{ vm_name }}"
+    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
+    insertafter: '^\[{{ inventory_group }}\]'
+    state: present
+  register: vm_inventory_status
+  when: update_inventory and vm_ip is defined
+
+- name: CONFIGURE_VM check if {{ vm_name }} is reachable on known ip address
+  command: ping -c1 {{ vm_ip }}
+  register: ping_result
+  ignore_errors: yes
