@@ -12,7 +12,7 @@
 
 - name: TEAR-DOWN-VM Shutdown {{ vm_name }}
   import_tasks: shutdown_vm.yml
-  when: vm_name in running_instances.list_vms
+  when: vm_name in all_instances.list_vms
 
 - name: TEAR-DOWN-VM ensure {{ vm_name }} is unregistered from RHSM
   command: >

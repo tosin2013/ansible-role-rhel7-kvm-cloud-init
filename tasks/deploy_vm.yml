@@ -94,20 +94,10 @@
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
 
-- name: DEPLOY_VM Check if cd-rom is attached
-  shell: >
-    virsh domblklist "{{ vm_name }}" | grep "{{ cidata_iso_name }}"|cat
-  register: check_cdrom
-  changed_when: false
-
 - name: DEPLOY_VM wait for cloud-init to initialize
   pause:
     seconds: 50
   when: vm_name not in all_instances.list_vms
-
-- name: DEPLOY_VM Eject CD-Rom
-  shell: "virsh change-media {{ vm_name }} {{ check_cdrom.stdout.split()[0] }} --eject"
-  when: check_cdrom.stdout != ""
 
 - name: DEPLOY_VM try to discover {{ vm_name }} ip address
   command: "/usr/local/bin/getvmip -r {{ vm_name }}"

@@ -50,6 +50,20 @@
   when: ping_result is not failed
   delegate_to: "{{ vm_name }}"
 
+- name: POST_CONFIG Check if cd-rom is attached
+  shell: >
+    virsh domblklist "{{ vm_name }}" | awk '/{{ cidata_iso_name }}/ {print $1}'
+  register: cdrom_device
+  ignore_errors: yes
+  changed_when: false
+  become: yes
+
+- name: POST_CONFIG Eject CD-Rom
+  shell: >
+    virsh change-media {{ vm_name }} {{ cdrom_device.stdout.split()[0] }} --eject
+  when: cdrom_device.stdout.split()[0] != ""
+
+
 
   #- name: POST_CONFIG make sure resolv.conf is updated
   #  find:

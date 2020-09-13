@@ -31,9 +31,10 @@
       import_tasks: configure_vm.yml
       delegate_to: "{{ kvm_install_host }}"
     
-    - name: Refresh inventory to ensure new instances exist in inventory
-      meta: refresh_inventory
+- name: Refresh inventory to ensure new instances exist in inventory
+  meta: refresh_inventory
     
-    - name: run post configuration
-      import_tasks: post_config.yml
-      become: yes
+- name: run post configuration
+  when: not vm_teardown|bool
+  import_tasks: post_config.yml
+  become: yes
