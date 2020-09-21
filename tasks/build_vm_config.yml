@@ -51,8 +51,8 @@
 
 - name: BUILD_VM_CONFIG setting vm_ip if user provided ip address
   set_fact:
-    vm_ip: "{{ vm_ipaddress }}"
-  when: vm_ipaddress is defined and vm_ipaddress | length != 0
+    vm_ip: "{{ vm_ipaddress if vm_ipaddress is defined and vm_ipaddress | length != 0 else '' }}"
+  #when: vm_ipaddress is defined and vm_ipaddress | length != 0
   tags: build_vm
 
 - name: BUILD_VM_CONFIG generate random mac address
