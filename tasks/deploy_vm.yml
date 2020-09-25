@@ -8,7 +8,7 @@
       register: os_disk_results
       when: expand_os_disk|bool
 
-    - name: DEPLOY_VM Copy {{ cloud_init_vm_image }} to {{ os_disk }}
+    - name: DEPLOY_VM Copy {{ vm_qcow_image }} to {{ os_disk }}
       command: "cp {{ os_qcow_template }} {{ os_disk }}"
       args:
         creates: "{{ os_disk }}"

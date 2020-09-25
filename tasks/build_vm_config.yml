@@ -73,7 +73,7 @@
     msg: |
          The qcow os template {{ os_qcow_template }} does not exist.
          Please verify the variable os_qcow_template is set to the correct path
-         or copy {{ cloud_init_vm_image }} to {{ os_qcow_template }}.
+         or copy {{ vm_qcow_image }} to {{ os_qcow_template }}.
   when: cloud_init_image_exist.stat.exists == False
   tags: build_vm
 
@@ -105,7 +105,7 @@
 - name: BUILD_VM_CONFIG show qcow image
   debug:
     msg: 
-      - "cloud_init_vm_image: {{ cloud_init_vm_image }}"
+      - "vm_qcow_image: {{ vm_qcow_image }}"
       - "os_disk: {{ os_disk }}"
       - "vm_root_disk_size: {{ vm_root_disk_size }}"
       - "os_qcow_template: {{ os_qcow_template }}"

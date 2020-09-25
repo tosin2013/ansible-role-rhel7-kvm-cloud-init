@@ -67,12 +67,14 @@ resolv_conf:
 {% else %}
   nameservers: ['{{ dns_servers[0] }}']
 {% endif %}
+{% if searchdomains is defined and searchdomains != ''  %}
   searchdomains: 
     - {{ search_domains[0] }}
   domain:  {{ vm_domain }}
   options:
     rotate: true
     timeout: 1
+{% endif %}
 
 # Change password (Reference Only)
 ssh_pwauth: True
@@ -100,11 +102,13 @@ ssh_authorized_keys:
 runcmd:
   - [systemctl, enable, qemu-guest-agent]
 
+{% if convert_dhcp_to_static %}
 # manually set BOOTPROTO for static IP
 # cloud-config related bug?
 runcmd:
     - [ sh, -c, 'sed -i s/BOOTPROTO=dhcp/BOOTPROTO=static/ /etc/sysconfig/network-scripts/ifcfg-eth0' ]
     - [ sh, -c, 'ifdown eth0 && sleep 1 && ifup eth0 && sleep 1 && ip a' ]
+{% endif %}
 
 # Remove cloud-init when finished with it
 runcmd:
