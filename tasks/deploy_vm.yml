@@ -1,5 +1,6 @@
 ---
 - name: DEPLOY_VM {{ vm_name }} disk image
+  when: vm_name not in all_instances.list_vms
   block:
     - name: DEPLOY_VM Create operating system disk for {{ vm_name }}
       command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
@@ -47,7 +48,6 @@
       register: grow_os_disk_results
       changed_when: '"Finishing off" in grow_os_disk_results.stdout'
       when: grow_fs and expand_os_disk|bool
-  when: vm_name not in all_instances.list_vms
 
 - name: DEPLOY_VM deploy VM instance
   command: "bash -x {{ vm_virtinstall_script }}"
@@ -57,6 +57,40 @@
                 ('failed to' in deploy_vm.stderr) or
                 ('ERROR' in deploy_vm.stderr) or
                 ('usage' in deploy_vm.stderr)"
+
+#- name: waiting for {{ vm_name }} cloud-init to complete
+#  shell: |
+#    result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
+#    if [ $result == 'shut' ];
+#    then
+#       echo "shutoff"
+#    else
+#       echo "running"
+#    fi
+#  register: vm_shutdown_status
+#  until: vm_shutdown_status.stdout.find('shutoff') != -1
+#  retries: 120
+#  delay: 5
+
+#- name: Ensure qemu-guest-agent is installed and enabled on {{ vm_name }}
+#  shell: |
+#    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'echo "systemctl restart qemu-guest-agent" >> /etc/rc.local'
+#  register: qemu_guest_agent
+#  #changed_when: '"Finishing off" in grow_os_disk_results.stdout'
+
+#- name: starting up {{ vm_name }}
+#  shell: |
+#    result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
+#    if [ $result == 'running' ];
+#    then
+#       echo "running"
+#    else
+#      virsh start {{ vm_name }};
+#    fi
+#  register: vm_startup_status
+#  until: vm_startup_status.stdout.find('running') != -1
+#  retries: 18
+#  delay: 5
 
 - debug:
     msg: "{{ deploy_vm }}"
@@ -94,19 +128,23 @@
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
 
-- name: DEPLOY_VM wait for cloud-init to initialize
-  pause:
-    seconds: 50
-  when: vm_name not in all_instances.list_vms
+#- name: DEPLOY_VM wait for cloud-init to initialize
+#  pause:
+#    seconds: 50
+#  when: vm_name not in all_instances.list_vms
 
-- name: DEPLOY_VM try to discover {{ vm_name }} ip address
+- name: DEPLOY_VM wait for {{ vm_name }} ip address
   command: "/usr/local/bin/getvmip -r {{ vm_name }}"
   until: dhcp_vm_ip.stdout != ""
   ignore_errors: yes
-  retries: 30
-  delay: 1
+  retries: 200
+  delay: 10
   register: dhcp_vm_ip
   changed_when: False
   #when: not convert_dhcp_to_static|bool
 
-
+- name: add {{ vm_name }} to in memory inventory
+  add_host:
+    name: "{{ dhcp_vm_ip.stdout }}"
+  #  groups: cloud_init_inventory
+  when: dhcp_vm_ip.stdout is defined

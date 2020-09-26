@@ -2,6 +2,23 @@
 cloud_config_modules:
   - resolv_conf
   - cc_rh_subscription
+  - runcmd
+## runcmd requires cloud_final_modules
+## but when enabled it slows down the boot
+## disabling for now
+#  - locale
+#  - set-passwords
+
+cloud_final_modules:
+ - scripts-user
+ - power_state_change
+# - rightscale_userdata
+# - scripts-per-once
+# - scripts-per-boot
+# - scripts-per-instance
+# - keys-to-console
+# - phone-home
+# - final-message
 
 # Hostname management
 preserve_hostname: False
@@ -31,19 +48,12 @@ rh_subscription:
 
 
 # Default Packages
-packages:
-  - wget
-  - net-tools
-  - bind-utils
-  - yum-utils
-  - iptables-services
-  - bridge-utils
-  - bash-completion
-  - kexec-tools
-  - sos
-  - psacct
-  - pyOpenSSL
-  - qemu-guest-agent
+#packages:
+#  - qemu-guest-agent
+#  - wget
+#{% if 'rhel' in os_release %}
+#  - yum-utils
+#{% endif %}
 
 
 # Users
@@ -59,6 +69,30 @@ users:
     ssh_authorized_keys:
       - "{{ lookup('file', vm_public_key) }}"
 
+
+# Change password (Reference Only)
+ssh_pwauth: True
+chpasswd:
+  list: |
+    root:{{ kvm_vm_root_pwd | password_hash('sha512') }}
+  expire: False
+
+# Configure where output will go
+#output:
+#  all: ">> {{ vm_data_dir }}/{{ vm_name }}/cloud-init.log"
+
+# configure interaction with ssh server
+ssh_svcname: ssh
+ssh_deletekeys: True
+ssh_genkeytypes: ['rsa', 'ecdsa']
+
+# Install my public ssh key to the first user-defined user configured
+# in cloud.cfg in the template (which is ctos for CentOS cloud images)
+ssh_authorized_keys:
+  - {{ vm_public_key }}
+
+# Setup for static neworking
+{% if static_net %}
 manage_resolv_conf: true
 
 resolv_conf:
@@ -75,42 +109,28 @@ resolv_conf:
     rotate: true
     timeout: 1
 {% endif %}
-
-# Change password (Reference Only)
-ssh_pwauth: True
-chpasswd:
-  list: |
-    root:{{ kvm_vm_root_pwd | password_hash('sha512') }}
-  expire: False
-
-# Configure where output will go
-output:
-  all: ">> {{ vm_data_dir }}/{{ vm_name }}/cloud-init.log"
-
-# configure interaction with ssh server
-ssh_svcname: ssh
-ssh_deletekeys: True
-ssh_genkeytypes: ['rsa', 'ecdsa']
-
-# Install my public ssh key to the first user-defined user configured
-# in cloud.cfg in the template (which is ctos for CentOS cloud images)
-ssh_authorized_keys:
-  - {{ vm_public_key }}
-
+runcmd:
+  - [systemctl, enable, qemu-guest-agent]
+  - [systemctl, start, qemu-guest-agent]
+# manually set BOOTPROTO for static IP
+# cloud-config related bug?
+  - [ sh, -c, 'sed -i s/BOOTPROTO=dhcp/BOOTPROTO=static/ /etc/sysconfig/network-scripts/ifcfg-eth0' ]
+  - [ sh, -c, 'ifdown eth0 && sleep 1 && ifup eth0 && sleep 1 && ip a' ]
+{% endif %}
 
 # enable qemu-guest-agent
 runcmd:
-  - [systemctl, enable, qemu-guest-agent]
+  - [ sh, -c, 'yum install -y qemu-guest-agent' ]
+  - [ sh, -c, 'echo "#!/bin/bash" > /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'echo "systemctl enable qemu-guest-agent" >> /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'echo "systemctl restart qemu-guest-agent" >> /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'chmod +x /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'systemctl enable qemu-guest-agent' ]
+  - [ sh, -c, 'systemctl restart qemu-guest-agent' ]
+#  - [ sh, -c, 'showdown now' ]
 
-{% if convert_dhcp_to_static %}
-# manually set BOOTPROTO for static IP
-# cloud-config related bug?
-runcmd:
-    - [ sh, -c, 'sed -i s/BOOTPROTO=dhcp/BOOTPROTO=static/ /etc/sysconfig/network-scripts/ifcfg-eth0' ]
-    - [ sh, -c, 'ifdown eth0 && sleep 1 && ifup eth0 && sleep 1 && ip a' ]
-{% endif %}
-
-# Remove cloud-init when finished with it
-runcmd:
-  - [ yum, -y, remove, cloud-init ]
-
+#power_state:
+#  delay: now
+#  mode: poweroff
+#  message: Shutting down after cloud-init
+#  condition: True

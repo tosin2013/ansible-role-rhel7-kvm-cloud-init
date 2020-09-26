@@ -1,16 +1,23 @@
 version: 2
 ethernets:
+{% if vm_ipaddress != "" and vm_cidr != "" and vm_gateway != "" %}
   eth0:
-     addresses: 
-       - {{ vm_ipaddress }}/{{ vm_mask_prefix }}
+     addresses:
+       - {{ vm_ipaddress }}/{{ vm_cidr }}
      gateway4: {{ vm_gateway }}
      nameservers:
 {% if dns_servers|length > 1 %}
-       addresses: 
-         - {{ dns_servers[0] }} 
+       addresses:
+         - {{ dns_servers[0] }}
          - {{ dns_servers[1] }}
 {% else %}
-       addresses: 
-         - {{ dns_servers[0] }} 
+       addresses:
+         - {{ dns_servers[0] }}
 {% endif %}
+{% if vm_domain != "" %}
      search: [ {{ vm_domain }} ]
+{% endif %}
+{% else %}
+  eth0:
+     dhcp4: true
+{% endif %}

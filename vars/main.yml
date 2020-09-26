@@ -1,1 +1,3 @@
 # Variable file
+## Ensure the default network configuration will be dhcp
+static_net: no

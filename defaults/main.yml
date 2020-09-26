@@ -29,7 +29,7 @@ vm_public_key: "/home/{{ admin_user }}/.ssh/id_rsa.pub"
 ## What to name the VM
 vm_name: ""
 
-## VM hostname
+## Your local domain
 vm_domain: ""
 
 ## How to register RHEL system you can provider username/password or
@@ -68,13 +68,13 @@ vm_nic: "eth0"
 ## ip address assignment. It's recommended that you create a DHCP reservation
 ## for this host to ensure the DHCP lease does not expire and get consume by 
 ## another host on the network.
-convert_dhcp_to_static: yes
+convert_dhcp_to_static: no
 
 ## VM Networking: DHCP is used by default
 ## Any value entered for the below varaibles will be used instead
 vm_gateway: ""
 vm_ipaddress: ""
-vm_mask_prefix: ""
+vm_netmask: ""
 vm_mac: ""
 
 ## Set to true to delete the VM
@@ -137,3 +137,5 @@ cloud_init_configs: "{{ cloud_init_user_data }} {{ cloud_init_meta_data }}"
 cidata_iso_name: cidata.iso
 cloud_init_iso_image: "{{ vm_data_dir }}/{{ vm_name }}/{{ cidata_iso_name }}"
 qcow_rhel_release: "{{ rhel_release | default('8') }}"
+ip_and_mask: "{{ vm_ipaddress }}/{{ vm_netmask }}"
+vm_cidr: "{{ ip_and_mask | ipaddr('prefix') }}"
