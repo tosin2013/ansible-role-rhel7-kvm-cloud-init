@@ -1,3 +1,6 @@
 # Variable file
 ## Ensure the default network configuration will be dhcp
 static_net: no
+
+## variable for setting user provided or discovered ip address
+vm_ip: ""

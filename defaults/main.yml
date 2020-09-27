@@ -29,9 +29,6 @@ vm_public_key: "/home/{{ admin_user }}/.ssh/id_rsa.pub"
 ## What to name the VM
 vm_name: ""
 
-## Your local domain
-vm_domain: ""
-
 ## How to register RHEL system you can provider username/password or
 ## activation key/org
 rhsm_username: ""
@@ -52,6 +49,9 @@ vm_memory: 1024
 vm_root_disk_size: 10G
 ## set this to yes if you change vm_root_disk_size is larger that 10G
 expand_os_disk: no
+
+## Your local domain
+vm_domain: ""
 
 ## Extra disk for VMs, set enable to true along with size
 extra_storage:
