@@ -1,9 +1,10 @@
+deploy-kvm-vm
+=============
 This role deploys a Libvirt KVM instance from a qcow image
-=========
 
 Tested deployments:
  - Red Hat Enterprise Linux 7/8
- - Fedora
+ - Fedora 32
 
 Requirements
 ------------
