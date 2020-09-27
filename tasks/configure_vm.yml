@@ -20,7 +20,6 @@
 - name: CONFIGURE_VM configure {{ vm_name }} to use dhcp provided ip address as static ip config
   import_tasks: set-dhcp-to-static.yml
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
   when: convert_dhcp_to_static|bool or vm_ipaddress | length != 0
 
 #- name: CONFIGURE_VM set vm ip variable to the one provided by the user
@@ -36,7 +35,7 @@
     insertafter: '^\[{{ inventory_group }}\]'
     state: present
   register: vm_inventory_status
-  when: update_inventory and vm_ip is defined
+  when: update_inventory|bool and vm_ip is defined
 
 - name: CONFIGURE_VM check if {{ vm_name }} is reachable on known ip address
   command: ping -c1 {{ vm_ip }}

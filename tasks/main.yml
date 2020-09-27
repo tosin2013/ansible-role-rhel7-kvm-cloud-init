@@ -1,12 +1,17 @@
 ---
 # tasks file for ansible-role-rhel7-kvm-cloud-init
+- name: convert disk size to bytes
+  vars:
+    new_size: "{{ vm_root_disk_size }} GB"
+    wanted_size: "{{ new_size|human_to_bytes }}"
+  set_fact:
+    expand_os_disk: "{{ true if wanted_size|int > '1073741824'|int else false }}"
 
 - name: Get a list of all instances
   virt:
     command: list_vms
   register: all_instances
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
   tags: always
 
 - name: check if networking should be static or dhcp
@@ -17,7 +22,6 @@
 - name: run tasks to teardown the VM
   import_tasks: teardown-vm.yml
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
   when: vm_teardown|bool
 
 - name: Deploy the VM
@@ -26,15 +30,12 @@
   block:
     - name: INCLUDE TASKS from build_vm_config.yml to build the VM deployment config
       import_tasks: build_vm_config.yml
-      delegate_to: "{{ kvm_install_host }}"
       
     - name: INCLUDE TASKS from deploy_vm.yml to deploy the vm
       import_tasks: deploy_vm.yml
-      delegate_to: "{{ kvm_install_host }}"
 
     - name: INCLUDE TASKS from configure_vm.yml to configure the vm
       import_tasks: configure_vm.yml
-      delegate_to: "{{ kvm_install_host }}"
     
 - name: Refresh inventory to ensure new instances exist in inventory
   meta: refresh_inventory

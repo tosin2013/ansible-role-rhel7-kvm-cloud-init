@@ -5,28 +5,7 @@
   check_mode: no
   ignore_errors: yes
   changed_when: no
-  when: update_inventory and vm_ip is defined
-
-- name: POST_CONFIG scan remote for keys
-  shell: |
-      ssh-keyscan -H {{ vm_name }} \
-                  {{ vm_ip }} \
-                  {{ lookup('dig', vm_name ) }} | sort -u
-  register: host_keys
-  changed_when: false
-  delegate_to: "{{ kvm_install_host }}"
-
-- name: POST_CONFIG Update "~/.ssh/known_hosts" with discovered keys
-  known_hosts:
-    state: present
-    name: "{{ item }}"
-    key: "{{ host_keys.stdout_lines | select('search','^'~item~' .*$') | join('\n') }}"
-  loop:
-    - "{{ vm_name }}"
-    - "{{ vm_ip }}"
-    - "{{ lookup('dig', vm_name ) }}"
-  failed_when: false
-  delegate_to: "{{ kvm_install_host }}"
+  when: update_inventory|bool and vm_ip is defined
 
 - name: POST_CONFIG update {{ vm_name }} /etc/resolv.conf
   when: ping_result is not failed and static_net|bool

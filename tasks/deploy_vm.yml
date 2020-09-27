@@ -1,27 +1,28 @@
 ---
+- name: convert disk size to bytes
+  vars:
+    new_disk_size: "{{ vm_root_disk_size }} GB"
+    disk_size_in_bytes: "{{ new_disk_size|human_to_bytes }}"
+  set_fact:
+    wanted_size: "{{ disk_size_in_bytes }}"
+    expand_os_disk: "{{ true if disk_size_in_bytes|int > '1073741824'|int else false }}"
+
+- name: DEPLOY_VM ensure {{ os_disk }} exist
+  stat:
+    path: "{{ os_disk }}"
+  register: os_disk_created
+
 - name: DEPLOY_VM {{ vm_name }} disk image
-  when: vm_name not in all_instances.list_vms
+  when: vm_name not in all_instances.list_vms and expand_os_disk|bool
   block:
     - name: DEPLOY_VM Create operating system disk for {{ vm_name }}
-      command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}"
+      when: not os_disk_created.stat.exists
+      command: "qemu-img create -f qcow2 {{ os_disk }} {{ vm_root_disk_size }}G"
       args:
         creates: "{{ os_disk }}"
       register: os_disk_results
-      when: expand_os_disk|bool
 
-    - name: DEPLOY_VM Copy {{ vm_qcow_image }} to {{ os_disk }}
-      command: "cp {{ os_qcow_template }} {{ os_disk }}"
-      args:
-        creates: "{{ os_disk }}"
-      register: os_disk_results
-      when: not expand_os_disk|bool
-
-    - name: DEPLOY_VM ensure {{ os_disk }} exist
-      stat:
-        path: "{{ os_disk }}"
-      register: os_disk_created
-
-    - name: DEPLOY_VM get {{ vm_name }} primary disk virtual size
+    - name: DEPLOY_VM get {{ vm_name }} operating system virtual size
       shell: >
         qemu-img info "{{ os_disk }}" | awk '/disk size/ {print $3}'
       register: os_virtual_disk_size
@@ -30,24 +31,36 @@
     - name: DEPLOY_VM set os disk size to human readable format
       set_fact:
         os_disk_size: "{{ os_virtual_disk_size.stdout | human_to_bytes }}"
-      when: os_disk_created.stat.exists
 
-    - name: DEPLOY_VM evaluate if {{ vm_name }} primary disk size should be increase
+    - name: DEPLOY_VM evaluate if {{ vm_name }} operating system size should be increased
       set_fact:
-        grow_fs: "{{ true if os_disk_created.stat.exists and os_disk_size|int < '1073741824'|int else false }}"
+        grow_fs: "{{ true if os_disk_size|int < wanted_size|int else false }}"
 
-    - name: DEPLOY_VM grow {{ vm_name }} primary disk
+    - name: DEPLOY_VM grow {{ vm_name }} operating system
       command: >
-        virt-resize --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
+        virt-resize -v -x --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
       register: resize_os_disk_results
       changed_when: '"Resize operation completed with no errors" in resize_os_disk_results.stdout'
-      when: grow_fs|bool and expand_os_disk|bool
+      when: grow_fs|bool
 
-    - name: Grow root file system to size to the requested disk size
+    - name: DEPLOY_VM Grow rhel root filesystem
       command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
       register: grow_os_disk_results
       changed_when: '"Finishing off" in grow_os_disk_results.stdout'
-      when: grow_fs and expand_os_disk|bool
+      when: "'rhel' in os_release and grow_fs|bool"
+
+    - name: DEPLOY_VM Grow fedora root filesystem
+      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'resize2fs /dev/sda1'
+      register: grow_os_disk_results
+      changed_when: '"Finishing off" in grow_os_disk_results.stdout'
+      when: "'fedora' in os_release and grow_fs|bool"
+
+- name: DEPLOY_VM Copy {{ vm_qcow_image }} to {{ os_disk }}
+  when: vm_name not in all_instances.list_vms and not expand_os_disk|bool
+  command: "cp {{ os_qcow_template }} {{ os_disk }}"
+  args:
+    creates: "{{ os_disk }}"
+  register: os_disk_results
 
 - name: DEPLOY_VM deploy VM instance
   command: "bash -x {{ vm_virtinstall_script }}"

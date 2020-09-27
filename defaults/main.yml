@@ -45,8 +45,13 @@ rhel_release: ""
 ##
 ## Resources to assign to VM
 vm_cpu: 2
+
+## memmory is megabytes
 vm_memory: 1024
+
+## disk size in gigabytes
 vm_root_disk_size: 10G
+
 ## set this to yes if you change vm_root_disk_size is larger that 10G
 expand_os_disk: no
 
@@ -97,11 +102,6 @@ dns_servers:
 ## Setup /etc/resolve
 nameservers: "{{ dns_servers }}"
 
-
-## Set this option if the KVM host is remote
-## ** THIS IS STILL IN DEVELOPMENT **
-kvm_install_host: localhost
-
 # Windoes OS info
 #os_release: "win2k12r2"
 #os_type: "windows"
@@ -109,7 +109,7 @@ kvm_install_host: localhost
 
 # If you have a static ansible inventory this role
 # can populate with the newly created VM
-update_inventory: false
+update_inventory: yes
 inventory_file: ""
 inventory_group: ""
 

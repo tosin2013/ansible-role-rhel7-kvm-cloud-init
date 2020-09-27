@@ -29,9 +29,9 @@ Example Playbooks
 
   vars:
     vm_name: "fedora32"
-    vm_cpu: "2"
-    vm_memory: "2048"
-    vm_root_disk_size: "20G"
+    vm_cpu: 2
+    vm_memory: 2048
+    vm_root_disk_size: 20
     vm_teardown: no
     vm_qcow_image: Fedora-Cloud-Base-32-1.6.x86_64.qcow2
     admin_user: changeme
@@ -54,9 +54,9 @@ Example Playbooks
 
   vars:
     vm_name: "rhel83-beta"
-    vm_cpu: "2"
-    vm_memory: "2048"
-    vm_root_disk_size: "20G"
+    vm_cpu: 2
+    vm_memory: 2048
+    vm_root_disk_size: 20
     vm_teardown: no
     vm_qcow_image: rhel-8.3-beta-1-x86_64-kvm.qcow2
     admin_user: changeme

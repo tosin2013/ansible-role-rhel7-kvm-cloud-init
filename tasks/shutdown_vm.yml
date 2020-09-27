@@ -6,9 +6,9 @@
     then
        echo "shutoff"
     else
-      virsh shutdown {{ vm_name }};
+      virsh destroy {{ vm_name }}
     fi
   register: vm_shutdown_status
   until: vm_shutdown_status.stdout.find('shutoff') != -1
-  retries: 18
-  delay: 3
+  retries: 30
+  delay: 5

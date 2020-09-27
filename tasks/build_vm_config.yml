@@ -37,7 +37,6 @@
   with_items:
     - getvmip
     - attach-libvirt-disk
-  delegate_to: "{{ kvm_install_host }}"
   tags: build_vm
 
 - name: BUILD_VM_CONFIG Create VM data dir to store vm information
@@ -46,7 +45,6 @@
     path: "{{ vm_data_dir }}/{{ vm_name }}"
     force: yes
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
   tags: build_vm
 
 - name: BUILD_VM_CONFIG setting vm_ip if user provided ip address
