@@ -1,22 +1,35 @@
 ---
-- name: DEPLOY_VM get {{ vm_name }} ip address
-  command: "/usr/local/bin/getvmip -r {{ vm_name }}"
-  until: vm_ip.stdout != ""
-  ignore_errors: yes
-  retries: 2
-  delay: 10
-  register: vm_ip
-  changed_when: False
+- name: Create in-memory inventory with discovered ip address
+  when: vm_ipaddress == ''
+  block:
+  - name: DEPLOY_VM get {{ vm_name }} ip address
+    command: "/usr/local/bin/getvmip -r {{ vm_name }}"
+    until: vm_ip.stdout != ""
+    ignore_errors: yes
+    retries: 2
+    delay: 10
+    register: vm_ip
+    changed_when: False
+
+  - name: set var vm_ipaddress with discovered ip address
+    set_fact:
+      vm_ipaddress: "{{ vm_ip.stdout }}"
+
+- name: add {{ vm_name }} ip address {{ vm_ipaddress }} to in memory inventory
+  add_host:
+    name: "{{ vm_ipaddress }}"
 
 - name: remove host from known host
+  become: no
   known_hosts:
     name: "{{ item }}"
     state: absent
+    path: "/home/{{ admin_user }}/.ssh/known_hosts"
   ignore_errors: yes
   loop:
-    - "{{ vm_ip }}"
     - "{{ vm_name }}.{{ vm_domain }}"
     - "{{ vm_name }}"
+    - "{{ vm_ipaddress }}"
 
 - name: TEAR-DOWN-VM find all disk for the vm
   find:
@@ -37,7 +50,7 @@
   command: >
     /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'subscription-manager unregister'
   ignore_errors: true
-  when: os_disk_exist.stat.exists and "'rhel' in os_release"
+  when: "os_disk_exist.stat.exists and 'rhel' in os_release"
 
 - name: TEAR-DOWN-VM Destroy {{ vm_name }}
   virt:
@@ -57,3 +70,5 @@
     state: absent
   with_items: "{{ vm_disks_all.files }}"
   when: vm_disks_all.matched != 0
+
+- meta: end_play

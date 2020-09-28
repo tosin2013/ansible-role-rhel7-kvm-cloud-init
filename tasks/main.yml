@@ -37,9 +37,6 @@
     - name: INCLUDE TASKS from configure_vm.yml to configure the vm
       import_tasks: configure_vm.yml
     
-- name: Refresh inventory to ensure new instances exist in inventory
-  meta: refresh_inventory
-    
 - name: run post configuration
   when: not vm_teardown|bool
   import_tasks: post_config.yml

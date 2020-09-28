@@ -8,7 +8,7 @@
   when: update_inventory|bool and vm_ip is defined
 
 - name: POST_CONFIG update {{ vm_name }} /etc/resolv.conf
-  when: ping_result is not failed and static_net|bool
+  when: ping_result is not failed and static_net|bool and vm_ip != ''
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
@@ -19,14 +19,14 @@
     name: root
     update_password: always
     password: "{{ kvm_vm_root_pwd | password_hash('sha512') }}"
-  when: ping_result is not failed
+  when: ping_result is not failed and vm_ip != ''
   delegate_to: "{{ vm_ip }}"
 
 - name: POST_CONFIG ensure cloud-init is uninstalled
   yum:
     name: cloud-init
     state: absent
-  when: ping_result is not failed
+  when: ping_result is not failed and vm_ip != ''
   delegate_to: "{{ vm_ip }}"
 
 - name: POST_CONFIG Check if cd-rom is attached
