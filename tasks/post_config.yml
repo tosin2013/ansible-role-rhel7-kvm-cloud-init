@@ -46,7 +46,7 @@
   debug:
     msg:
       - "***********************************"
-      - "    VM Name:    {{ vm_name }}"
-      - "    IP Address: {{ vm_ip }}"
-      - "    Username:   {{ admin_user }}"
+      - "    VM Name:    {{ vm_name }}      "
+      - "    IP Address: {{ vm_ip }}        "
+      - "    Username:   {{ admin_user }}   "
       - "***********************************"

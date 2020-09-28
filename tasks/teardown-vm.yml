@@ -15,21 +15,24 @@
     set_fact:
       vm_ipaddress: "{{ vm_ip.stdout }}"
 
-- name: add {{ vm_name }} ip address {{ vm_ipaddress }} to in memory inventory
-  add_host:
-    name: "{{ vm_ipaddress }}"
+- name: run tasks against {{ vm_name }} when ip address in known
+  when: vm_ipaddress != ''
+  block:
+  - name: add {{ vm_name }} ip address {{ vm_ipaddress }} to in memory inventory
+    add_host:
+      name: "{{ vm_ipaddress }}"
 
-- name: remove host from known host
-  become: no
-  known_hosts:
-    name: "{{ item }}"
-    state: absent
-    path: "/home/{{ admin_user }}/.ssh/known_hosts"
-  ignore_errors: yes
-  loop:
-    - "{{ vm_name }}.{{ vm_domain }}"
-    - "{{ vm_name }}"
-    - "{{ vm_ipaddress }}"
+  - name: remove host from known host
+    become: no
+    known_hosts:
+      name: "{{ item }}"
+      state: absent
+      path: "/home/{{ admin_user }}/.ssh/known_hosts"
+    ignore_errors: yes
+    loop:
+      - "{{ vm_name }}.{{ vm_domain }}"
+      - "{{ vm_name }}"
+      - "{{ vm_ipaddress }}"
 
 - name: TEAR-DOWN-VM find all disk for the vm
   find:
