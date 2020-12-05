@@ -117,6 +117,8 @@ inventory_group: ""
 ## NO CHANGE REQUIRED
 vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
 vm_hostname: "{{ vm_local_hostname }}"
+# get list of os variants
+# $ osinfo-query os
 os_variant: "{{ os_release }}"
 vm_ifcfg: "{{ vm_data_dir }}/{{ vm_name }}/ifcfg"
 vm_virtinstall_script: "{{ vm_data_dir }}/{{ vm_name }}/virtinstall.sh"

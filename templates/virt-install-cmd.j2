@@ -11,7 +11,7 @@ virt-install --connect qemu:///system \
              --os-type Linux \
              --os-variant {{ os_variant }} \
 	     --virt-type kvm \
-	     --noautoconsole \
-             --autostart
+	     --noautoconsole 
+            // --autostart
 
 exit 0
