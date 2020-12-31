@@ -24,7 +24,7 @@
   block:
     - name: DEPLOY_VM Create operating system disk for {{ vm_name }}
       when: not os_disk_created.stat.exists
-      command: "qemu-img create -f qcow2 preallocation=full {{ os_disk }} {{ vm_root_disk_size }}"
+      command: "qemu-img create -f qcow2 -o preallocation={{ qemu_img_allocation }} {{ os_disk }} {{ vm_root_disk_size }}"
       args:
         creates: "{{ os_disk }}"
       register: create_os_disk

@@ -113,6 +113,9 @@ update_inventory: yes
 inventory_file: ""
 inventory_group: ""
 
+# Qemu preallocation, options are: metadata, falloc, full
+qemu_img_allocation: falloc
+
 #########################
 ## NO CHANGE REQUIRED
 required_packages:
