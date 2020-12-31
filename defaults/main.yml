@@ -115,6 +115,9 @@ inventory_group: ""
 
 #########################
 ## NO CHANGE REQUIRED
+required_packages:
+  - python3-netaddr
+
 vm_local_hostname: "{{ vm_name }}.{{ vm_domain }}"
 vm_hostname: "{{ vm_local_hostname }}"
 # get list of os variants
