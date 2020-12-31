@@ -1,5 +1,5 @@
 ---
-# tasks file for ansible-role-rhel7-kvm-cloud-init
+# tasks file for deploy-kvm-vm
 
 - name: Ensure required packages are installed
   become: yes
