@@ -1,13 +1,5 @@
 # Changelog
 
-## [v2.4.4](https://github.com/Qubinode/deploy-kvm-vm/tree/v2.4.4) (2021-01-12)
-
-[Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/test-tag...v2.4.4)
-
-## [test-tag](https://github.com/Qubinode/deploy-kvm-vm/tree/test-tag) (2020-12-31)
-
-[Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/v1.2...test-tag)
-
 ## [v1.2](https://github.com/Qubinode/deploy-kvm-vm/tree/v1.2) (2020-12-31)
 
 [Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/v2.4.2...v1.2)
