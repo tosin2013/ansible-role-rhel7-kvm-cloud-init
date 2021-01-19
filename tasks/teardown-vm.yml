@@ -74,4 +74,4 @@
   with_items: "{{ vm_disks_all.files }}"
   when: vm_disks_all.matched != 0
 
-- meta: end_play
+#- meta: end_play
