@@ -1,4 +1,10 @@
 ---
+- name: Get OS disk size digits
+  vars:
+    match_regex: '^[0-9]*'
+  set_fact:
+    os_vm_disk_size: "{{ vm_root_disk_size | regex_search(match_regex) }}"
+
 - name: DEPLOY_VM get {{ os_qcow_template }} size
   shell: >
     qemu-img info "{{ os_qcow_template }}" | awk -F'[^0-9]*' '/virtual size/ {print $3}'
@@ -7,45 +13,93 @@
 
 - name: DEPLOY_VM convert disk size to bytes
   vars:
-    new_disk_size: "{{ vm_root_disk_size }} GB"
+    new_disk_size: "{{ os_vm_disk_size }} GB"
     disk_size_in_bytes: "{{ new_disk_size|human_to_bytes }}"
   set_fact:
     qcow_source_disk_size: "{{ qcow_source_size.stdout }}"
     wanted_size: "{{ disk_size_in_bytes }}"
+    os_disk_wanted_size: "{{ os_vm_disk_size }}G"
     expand_os_disk: "{{ true if disk_size_in_bytes|int > qcow_source_size.stdout|int else false }}"
 
 - name: DEPLOY_VM check if {{ vm_name }} disk {{ os_disk }} exist
   stat:
     path: "{{ os_disk }}"
+    get_checksum: no
+    get_attributes: no
   register: os_disk_created
 
-- name: DEPLOY_VM {{ vm_name }} disk image
+- name: DEPLOY_VM - Ensure {{ os_disk }} disk size is {{ os_vm_disk_size }}G
   when: vm_name not in all_instances.list_vms and expand_os_disk|bool
   block:
+    - name: DEPLOY_VM - Get existing VM disk size
+      when: os_disk_created.stat.exists
+      command: "qemu-img info {{ os_disk }}"
+      register: _os_sda_disk_size
+      changed_when: False
+      become: yes
+
+    - name: DEPLOY_VM - Get the size of disk {{ os_disk }}
+      when: os_disk_created.stat.exists
+      vars:
+        match_regex: "[0-9]*G"
+      set_fact:
+        existing_os_vm_disk_size: "{{ _os_sda_disk_size.stdout | regex_search(match_regex) }}"
+
+    - name: DEPLOY_VM - Disk {{ os_disk }} size is {{ existing_os_vm_disk_size }} - REMOVING
+      file:
+        path: "{{ os_disk }}"
+        state: absent
+      when: existing_os_vm_disk_size is defined and existing_os_vm_disk_size != os_disk_wanted_size
+
+    - name: DEPLOY_VM check if {{ vm_name }} disk {{ os_disk }} exist
+      stat:
+        path: "{{ os_disk }}"
+        get_checksum: no
+        get_attributes: no
+      register: os_disk_created      
+
     - name: DEPLOY_VM Create operating system disk for {{ vm_name }}
       when: not os_disk_created.stat.exists
-      command: "qemu-img create -f qcow2 -o preallocation={{ qemu_img_allocation }} {{ os_disk }} {{ vm_root_disk_size }}"
+      command: "qemu-img create -f qcow2 -o preallocation={{ qemu_img_allocation }} {{ os_disk }} {{ os_vm_disk_size }}G"
       args:
         creates: "{{ os_disk }}"
       register: create_os_disk
 
-    - name: DEPLOY_VM grow {{ vm_name }} operating system
+    - name: DEPLOY_VM  Get {{ os_disk }} filesystem size
+      shell: >
+        virt-filesystems -a {{ os_disk }} -h --filesystems -l| awk 'NR>1 {print $5}'
+      changed_when: False
+      register: filesystem_size
+      become: yes
+
+    - name: DEPLOY_VM Declare {{ os_disk }}  filesystem size
+      set_fact:
+        grow_filesystem_size: "{{ 'yes' if os_disk_wanted_size != filesystem_size.stdout else 'no' }}"
+
+    - name: DEPLOY_VM grow {{ vm_name }} disk {{ os_disk }} based on {{ os_qcow_template }}
+      when: grow_filesystem_size|bool
       command: >
-        sudo virt-resize -v -x --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
+        virt-resize -v -x --expand /dev/sda1 "{{ os_qcow_template }}" "{{ os_disk }}"
       register: resize_create_os_disk
       changed_when: '"Resize operation completed with no errors" in resize_create_os_disk.stdout'
+      become: yes
 
-    - name: DEPLOY_VM Grow rhel root filesystem
-      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
-      register: grow_create_os_disk
-      changed_when: '"Finishing off" in grow_create_os_disk.stdout'
-      when: "'rhel' in os_release"
-
-    - name: DEPLOY_VM Grow fedora root filesystem
-      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'resize2fs /dev/sda1'
-      register: grow_create_os_disk
-      changed_when: '"Finishing off" in grow_create_os_disk.stdout'
-      when: "'fedora' in os_release"
+## TODO: Remove becasuse the virt-resize task does this
+#    - name: DEPLOY_VM Grow rhel root filesystem
+#      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'xfs_growfs /'
+#      register: grow_create_os_disk
+#      changed_when: '"Finishing off" in grow_create_os_disk.stdout'
+#      when: >
+#        "'rhel' in os_release" and 
+#        grow_filesystem_size|bool
+#
+#    - name: DEPLOY_VM Grow fedora root filesystem
+#      command: /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --run-command 'resize2fs /dev/sda1'
+#      register: grow_create_os_disk
+#      changed_when: '"Finishing off" in grow_create_os_disk.stdout'
+#      when: > 
+#        "'fedora' in os_release" and
+#        grow_filesystem_size|bool
 
 - name: DEPLOY_VM Copy {{ vm_qcow_image }} to {{ os_disk }}
   when: vm_name not in all_instances.list_vms and not expand_os_disk|bool
@@ -94,6 +148,32 @@
     label: "{{ disk_name }}"
   when: item.enable
   changed_when: '"Disk attached successfully" in attached_disk.stdout'
+
+- name: DEPLOY_VM - Shutdown {{ vm_name }} when extra disk is added
+  when: attached_disk.changed
+  shell: >
+    virsh destroy "{{ vm_name }}"
+  ignore_errors: yes
+  register: virsh_shutdown
+  become: yes
+
+- name: DEPLOY_VM - Ensure {{ vm_name }} is shutdown
+  when: virsh_shutdown.changed
+  virt:
+    command: list_vms
+    state: shutdown
+  register: shutdown_vms
+  until: vm_name in shutdown_vms.list_vms
+  retries: 120
+  delay: 30
+  become: yes
+
+- name: DEPLOY_VM - Start {{ vm_name }}
+  when: attached_disk.changed
+  virt:
+    name: "{{ vm_name }}"
+    state: running
+  become: yes
 
 - name: DEPLOY_VM wait for {{ vm_name }} ip address
   command: "/usr/local/bin/getvmip -r {{ vm_name }}"
