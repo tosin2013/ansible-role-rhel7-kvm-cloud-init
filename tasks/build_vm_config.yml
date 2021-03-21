@@ -5,6 +5,8 @@
     - name: BUILD_VM_CONFIG check for presense of libguestfs appliance
       stat:
         path: /export/libguestfs/appliance/kernel
+        get_checksum: no
+        get_attributes: no
       register: libguestfs_app
 
     - name: BUILD_VM_CONFIG ensure the direct /export/libguestfs exist
@@ -61,6 +63,8 @@
 - name: BUILD_VM_CONFIG Check if qcow OS image template exist
   stat:
     path: "{{ os_qcow_template }}"
+    get_checksum: no
+    get_attributes: no
   register: cloud_init_image_exist
   tags: build_vm
 
@@ -106,6 +110,8 @@
 - name: BUILD_VM_CONFIG check for existing cloud init iso
   stat:
     path: "{{ cloud_init_iso_image }}"
+    get_checksum: no
+    get_attributes: no
   register: cloud_init_iso
   tags: build_vm
 

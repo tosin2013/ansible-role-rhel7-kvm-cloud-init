@@ -1,5 +1,13 @@
 # Changelog
 
+## [qbnv2.4.4](https://github.com/Qubinode/deploy-kvm-vm/tree/qbnv2.4.4) (2021-01-12)
+
+[Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/v1.2.0...qbnv2.4.4)
+
+## [v1.2.0](https://github.com/Qubinode/deploy-kvm-vm/tree/v1.2.0) (2021-01-12)
+
+[Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/v1.2...v1.2.0)
+
 ## [v1.2](https://github.com/Qubinode/deploy-kvm-vm/tree/v1.2) (2020-12-31)
 
 [Full Changelog](https://github.com/Qubinode/deploy-kvm-vm/compare/v2.4.2...v1.2)

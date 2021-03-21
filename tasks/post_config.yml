@@ -8,13 +8,20 @@
   when: update_inventory|bool and vm_ip is defined
 
 - name: POST_CONFIG update {{ vm_name }} /etc/resolv.conf
-  when: ping_result is not failed and static_net|bool and vm_ip != ''
+  become: yes
   template:
     src: resolv.conf.j2
     dest: /etc/resolv.conf
   delegate_to: "{{ vm_ip }}"
+  when: >
+    ping_result is not failed and 
+    static_net|bool and 
+    vm_ip is defined and
+    vm_ip != '' and
+    not vm_teardown|bool
 
 - name: POST_CONFIG change root password
+  become: yes
   user:
     name: root
     update_password: always
@@ -23,6 +30,7 @@
   delegate_to: "{{ vm_ip }}"
 
 - name: POST_CONFIG ensure cloud-init is uninstalled
+  become: yes
   yum:
     name: cloud-init
     state: absent
@@ -37,10 +45,18 @@
   changed_when: false
   become: yes
 
-- name: POST_CONFIG Eject CD-Rom
+- name: POST_CONFIG Declare CDROM
+  set_fact:
+    cdrom_device: "{{ cdrom_device.stdout.split()[0] }}"
+  when: >
+    cdrom_device.stdout.split()[0] is defined and
+    cdrom_device.stdout.split()[0] != ""
+
+- name: POST_CONFIG Eject CDROM {{ cdrom_device }}
   shell: >
-    virsh change-media {{ vm_name }} {{ cdrom_device.stdout.split()[0] }} --eject
-  when: cdrom_device.stdout != '' and cdrom_device.stdout.split()[0] != ""
+    virsh change-media {{ vm_name }} {{ cdrom_device }} --eject
+  ignore_errors: yes
+  when: cdrom_device != ""
 
 - name: POST_CONFIG display vm information
   debug:

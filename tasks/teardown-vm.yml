@@ -36,13 +36,15 @@
 
 - name: TEAR-DOWN-VM find all disk for the vm
   find:
-    paths: "{{ kvm_vm_pool_dir}}/"
+    paths: "{{ kvm_vm_pool_dir }}/"
     patterns: "{{ vm_name }}_vd*.*"
   register: vm_disks_all
 
 - name: TEAR-DOWN-VM check if OS disk exist
   stat:
     path: "{{ os_disk }}"
+    get_checksum: no
+    get_attributes: no
   register: os_disk_exist
 
 - name: TEAR-DOWN-VM Shutdown {{ vm_name }}
@@ -74,4 +76,4 @@
   with_items: "{{ vm_disks_all.files }}"
   when: vm_disks_all.matched != 0
 
-- meta: end_play
+#- meta: end_play
