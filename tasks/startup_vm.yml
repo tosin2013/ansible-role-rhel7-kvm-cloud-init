@@ -1,0 +1,27 @@
+---
+- name: START-UP-VM starting up {{ vm_name }}
+  virt:
+    name: "{{ vm_name }}"
+    state: running
+
+- name: CONFIGURE_VM check if {{ vm_name }} is reachable on known ip address
+  wait_for:
+    host: "{{ vm_ip }}"
+    port: 22
+    delay: 10
+    timeout: 120
+    msg: "{{ vm_name }} not reachable on {{ vm_ip }}"
+  register: ping_result
+
+#- block:
+#    - name: START-UP-VM check if VM is reachable on known ip address
+#      command: ping -c1 {{ vm_ip }}
+#      register: ping_result
+#      ignore_errors: yes
+#
+#    - fail:
+#        msg: "{{ vm_name }} is unreachable"
+#      when: ping_result is failed
+#  rescue:
+#    - debug:
+#        msg: "{{ vm_name }} not reachable on {{ vm_ip }}"

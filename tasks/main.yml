@@ -1,72 +1,49 @@
 ---
-# tasks file for ansible-role-rhel7-kvm-cloud-init
+# tasks file for deploy-kvm-vm
+
+- name: Ensure required packages are installed
+  become: yes
+  package:
+    name: "{{ required_packages }}"
+    state: present
+
+- name: convert disk size to bytes
+  vars:
+    new_size: "{{ vm_root_disk_size }} GB"
+    wanted_size: "{{ new_size|human_to_bytes }}"
+  set_fact:
+    expand_os_disk: "{{ true if wanted_size|int > '1073741824'|int else false }}"
+
 - name: Get a list of all instances
   virt:
     command: list_vms
   register: all_instances
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
+  tags: always
 
-- name: run VM teardown tasks when vm_teardown
+- name: check if networking should be static or dhcp
+  set_fact:
+    static_net: yes
+  when: convert_dhcp_to_static|bool or vm_ipaddress != ""
+
+- name: run tasks to teardown the VM
   import_tasks: teardown-vm.yml
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: vm_teardown
+  when: vm_teardown|bool
 
-- name: copy scripts to KVM host
-  copy:
-    src: "files/{{ item }}"
-    dest: "/usr/local/bin/{{ item }}"
-    mode: 755
-    owner: root
-  with_items:
-    - getvmip
-    - attach-libvirt-disk
-  delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
-
-- name: Create VM data dir to store vm information
-  file:
-    state: directory
-    path: "{{ vm_data_dir }}/{{ vm_name }}"
-    force: yes
+- name: Deploy the VM
+  when: not vm_teardown|bool
   become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
+  block:
+    - name: INCLUDE TASKS from build_vm_config.yml to build the VM deployment config
+      import_tasks: build_vm_config.yml
+      
+    - name: INCLUDE TASKS from deploy_vm.yml to deploy the vm
+      import_tasks: deploy_vm.yml
 
-- name: Deploy Base VM
-  import_tasks: deploy-vm.yml
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
-
-- name: Gather VM ip networking info
-  import_tasks: get_ip_info.yml
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown
-
-- name: add {{ vm_name }} to ansible inventory inventory
-  lineinfile:
-    path: "{{ inventory_file }}"
-    regexp: "^{{ vm_name }}"
-    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
-    insertafter: '^\[{{ inventory_group }}\]'
-    state: present
-  register: vm_inventory_status
-  when: not vm_teardown and (update_inventory and vm_ip is defined)
-
-- name: refresh local static inventory
-  meta: refresh_inventory
-  when: not vm_teardown and (update_inventory and vm_ip is defined)
-
-- name: ensure VM is using static ip address config
-  import_tasks: dhcp_to_static.yml
-  become: yes
-  delegate_to: "{{ kvm_install_host }}"
-  when: not vm_teardown and static_ip|bool
+    - name: INCLUDE TASKS from configure_vm.yml to configure the vm
+      import_tasks: configure_vm.yml
 
 - name: run post configuration
-  import_tasks: post-config.yml
-  become: yes
-  when: not vm_teardown
+  when: not vm_teardown|bool
+  include_tasks: post_config.yml

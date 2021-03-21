@@ -1,0 +1,68 @@
+---
+- name: POST_CONFIG check for {{ vm_name }} in inventory {{ inventory_file }}
+  command: grep {{ vm_name }} {{ inventory_file }}
+  register: vm_in_inventory
+  check_mode: no
+  ignore_errors: yes
+  changed_when: no
+  when: update_inventory|bool and vm_ip is defined
+
+- name: POST_CONFIG update {{ vm_name }} /etc/resolv.conf
+  become: yes
+  template:
+    src: resolv.conf.j2
+    dest: /etc/resolv.conf
+  delegate_to: "{{ vm_ip }}"
+  when: >
+    ping_result is not failed and 
+    static_net|bool and 
+    vm_ip is defined and
+    vm_ip != '' and
+    not vm_teardown|bool
+
+- name: POST_CONFIG change root password
+  become: yes
+  user:
+    name: root
+    update_password: always
+    password: "{{ kvm_vm_root_pwd | password_hash('sha512') }}"
+  when: ping_result is not failed and vm_ip != ''
+  delegate_to: "{{ vm_ip }}"
+
+- name: POST_CONFIG ensure cloud-init is uninstalled
+  become: yes
+  yum:
+    name: cloud-init
+    state: absent
+  when: ping_result is not failed and vm_ip != ''
+  delegate_to: "{{ vm_ip }}"
+
+- name: POST_CONFIG Check if cd-rom is attached
+  shell: >
+    virsh domblklist "{{ vm_name }}" | awk '/{{ cidata_iso_name }}/ {print $1}'
+  register: cdrom_device
+  ignore_errors: yes
+  changed_when: false
+  become: yes
+
+- name: POST_CONFIG Declare CDROM
+  set_fact:
+    cdrom_device: "{{ cdrom_device.stdout.split()[0] }}"
+  when: >
+    cdrom_device.stdout.split()[0] is defined and
+    cdrom_device.stdout.split()[0] != ""
+
+- name: POST_CONFIG Eject CDROM {{ cdrom_device }}
+  shell: >
+    virsh change-media {{ vm_name }} {{ cdrom_device }} --eject
+  ignore_errors: yes
+  when: cdrom_device != ""
+
+- name: POST_CONFIG display vm information
+  debug:
+    msg:
+      - "***********************************"
+      - "    VM Name:    {{ vm_name }}      "
+      - "    IP Address: {{ vm_ip }}        "
+      - "    Username:   {{ admin_user }}   "
+      - "***********************************"

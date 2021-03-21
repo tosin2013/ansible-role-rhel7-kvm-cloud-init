@@ -1,0 +1,73 @@
+---
+- name: SET-DHCP-TO-STATIC fail if vm_ip is not defined
+  fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0
+
+- set_fact:
+    vm_ip_differ: false
+
+- name: SET-DHCP-TO-STATIC check if VM current ip matches the user provided ip
+  set_fact:
+    vm_ip_differ: true
+  when: vm_ipaddress | length != 0 and (dhcp_vm_ip.stdout != vm_ipaddress)
+
+- name: SET-DHCP-TO-STATIC set VM ip address to user specefied
+  set_fact:
+    vm_ip: "{{ vm_ipaddress }}"
+  when: vm_ip_differ|bool
+
+- name: SET-DHCP-TO-STATIC discover {{ vm_name }} netmask prefix when using DHCP
+  shell: |
+    /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
+  register: netmask_prefix
+  changed_when: False
+  when: vm_cidr is not defined
+
+- name: SET-DHCP-TO-STATIC setting vm_cidr variable to {{ vm_name }} dhcp provided netmask
+  set_fact:
+    vm_cidr: "{{ netmask_prefix.stdout }}"
+  when: netmask_prefix is defined and netmask_prefix is not skipped
+
+- name: SET-DHCP-TO-STATIC discover {{ vm_name }} gateway when using DHCP
+  shell: |
+       ip route get 8.8.8.8|awk '/via/ {print $3}'
+  delegate_to: "{{ vm_name }}"
+  changed_when: false
+  register: gateway
+  when: vm_gateway is not defined
+
+- name: SET-DHCP-TO-STATIC setting vm_gateway variable to {{ vm_name }} dhcp provided gateway
+  set_fact:
+    vm_gateway: "{{ gateway.stdout }}"
+  when: gateway is defined and gateway is not skipped
+
+- name: SET-DHCP-TO-STATIC Get MAC address
+  shell: >
+     virsh --connect qemu:///system dumpxml {{ vm_name }} | awk -F\' '/mac address/ {print $2}'
+  register: vm_mac_result
+  changed_when: false
+  when: vm_name in all_instances.list_vms and vm_mac is not defined
+
+- name: SET-DHCP-TO-STATIC setting {{ vm_name }} vm_mac variable to {{ vm_mac_result.stdout }} 
+  set_fact:
+    vm_mac: "{{ vm_mac_result.stdout }}"
+  when: vm_name in all_instances.list_vms and vm_mac is not defined
+
+- name: SET-DHCP-TO-STATIC generate {{ vm_name }} ifcfg interface template
+  template:
+    src: ifcfg.j2
+    dest: "{{ vm_ifcfg }}"
+
+- name: SET-DHCP-TO-STATIC Shutdown VM
+  import_tasks: shutdown_vm.yml
+  when: vm_ip_differ|bool
+
+- name: SET-DHCP-TO-STATIC deploy custom /etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  command: >
+    /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+  register: uploaded_static_ip
+  when: vm_ip_differ|bool
+  
+- name: SET-DHCP-TO-STATIC startup VM
+  import_tasks: startup_vm.yml

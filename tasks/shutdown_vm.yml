@@ -1,0 +1,14 @@
+---
+- name: SHUTDOWN-VM shutting down {{ vm_name }} to run virt-customize
+  shell: |
+    result=$(virsh dominfo --domain {{ vm_name }}| awk '/State/ {print $2}')
+    if [ $result == 'shut' ];
+    then
+       echo "shutoff"
+    else
+      virsh destroy {{ vm_name }}
+    fi
+  register: vm_shutdown_status
+  until: vm_shutdown_status.stdout.find('shutoff') != -1
+  retries: 30
+  delay: 5

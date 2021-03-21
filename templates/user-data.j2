@@ -2,6 +2,23 @@
 cloud_config_modules:
   - resolv_conf
   - cc_rh_subscription
+  - runcmd
+## runcmd requires cloud_final_modules
+## but when enabled it slows down the boot
+## disabling for now
+#  - locale
+#  - set-passwords
+
+cloud_final_modules:
+ - scripts-user
+ - power_state_change
+# - rightscale_userdata
+# - scripts-per-once
+# - scripts-per-boot
+# - scripts-per-instance
+# - keys-to-console
+# - phone-home
+# - final-message
 
 # Hostname management
 preserve_hostname: False
@@ -31,65 +48,38 @@ rh_subscription:
 
 
 # Default Packages
-packages:
-  - wget
-  - net-tools
-  - bind-utils
-  - yum-utils
-  - iptables-services
-  - bridge-utils
-  - bash-completion
-  - kexec-tools
-  - sos
-  - psacct
-  - pyOpenSSL
-  - qemu-guest-agent
+#packages:
+#  - qemu-guest-agent
+#  - wget
+#{% if 'rhel' in os_release %}
+#  - yum-utils
+#{% endif %}
 
 
 # Users
 users:
-  - default
   - name: {{ admin_user }}
-    ssh_pwauth: True
-    ssh_authorized_keys:
-    - {{ vm_public_key }}
-    groups: wheel,adm,systemd-journal
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    groups: wheel,adm,systemd-journal
+    home: /home/{{ admin_user }}
+    shell: /bin/bash
+    lock_passwd: false
+    ssh_pwauth: True
+    passwd: {{ admin_user_password | password_hash('sha512') }}
+    ssh_authorized_keys:
+      - "{{ lookup('file', vm_public_key) }}"
 
-manage_resolv_conf: true
-
-resolv_conf:
-  nameservers: ['{{ dns_servers[0] }}', '{{ dns_servers[1] }}']
-  searchdomains: 
-    - {{ search_domains[0] }}
-  domain:  {{ vm_domain }}
-  options:
-    rotate: true
-    timeout: 1
 
 # Change password (Reference Only)
 ssh_pwauth: True
 chpasswd:
   list: |
-    {{ admin_user }}:{{ admin_user_password }}
-    root:{{ kvm_vm_root_pwd }}
+    root:{{ kvm_vm_root_pwd | password_hash('sha512') }}
   expire: False
 
-# start qemu-guest-agent
-runcmd:
-  - [systemctl, start, qemu-guest-agent]
-
-# enable qemu-guest-agent
-runcmd:
-  - [systemctl, enable, qemu-guest-agent]
-
-# Remove cloud-init when finished with it
-runcmd:
-  - [ yum, -y, remove, cloud-init ]
-
 # Configure where output will go
-output:
-  all: ">> /var/log/cloud-init.log"
+#output:
+#  all: ">> {{ vm_data_dir }}/{{ vm_name }}/cloud-init.log"
 
 # configure interaction with ssh server
 ssh_svcname: ssh
@@ -101,3 +91,46 @@ ssh_genkeytypes: ['rsa', 'ecdsa']
 ssh_authorized_keys:
   - {{ vm_public_key }}
 
+# Setup for static neworking
+{% if static_net %}
+manage_resolv_conf: true
+
+resolv_conf:
+{% if dns_servers[0] is defined and dns_servers[1] is defined %}
+  nameservers: ['{{ dns_servers[0] }}', '{{ dns_servers[1] }}']
+{% else %}
+  nameservers: ['{{ dns_servers[0] }}']
+{% endif %}
+{% if searchdomains is defined and searchdomains != ''  %}
+  searchdomains: 
+    - {{ search_domains[0] }}
+  domain:  {{ vm_domain }}
+  options:
+    rotate: true
+    timeout: 1
+{% endif %}
+runcmd:
+  - [systemctl, enable, qemu-guest-agent]
+  - [systemctl, start, qemu-guest-agent]
+# manually set BOOTPROTO for static IP
+# cloud-config related bug?
+  - [ sh, -c, 'sed -i s/BOOTPROTO=dhcp/BOOTPROTO=static/ /etc/sysconfig/network-scripts/ifcfg-eth0' ]
+  - [ sh, -c, 'ifdown eth0 && sleep 1 && ifup eth0 && sleep 1 && ip a' ]
+{% endif %}
+
+# enable qemu-guest-agent
+runcmd:
+  - [ sh, -c, 'yum install -y qemu-guest-agent' ]
+  - [ sh, -c, 'echo "#!/bin/bash" > /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'echo "systemctl enable qemu-guest-agent" >> /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'echo "systemctl restart qemu-guest-agent" >> /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'chmod +x /etc/rc.d/rc.local' ]
+  - [ sh, -c, 'systemctl enable qemu-guest-agent' ]
+  - [ sh, -c, 'systemctl restart qemu-guest-agent' ]
+#  - [ sh, -c, 'showdown now' ]
+
+#power_state:
+#  delay: now
+#  mode: poweroff
+#  message: Shutting down after cloud-init
+#  condition: True

@@ -9,4 +9,4 @@ domain {{ vm_domain }}
 {% for ns in dns_servers %}
 nameserver {{ ns }}
 {% endfor %}
-options rotate timeout:1
+#options rotate timeout:1

@@ -1,0 +1,52 @@
+---
+- name: CONFIGURE_VM set vm_ip var to ip dhcp provided ip address
+  set_fact:
+    vm_ip: "{{ dhcp_vm_ip.stdout }}"
+
+- name: CONFIGURE_VM ensure the var vm_ip is defined
+  fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0
+
+- name: convert {{ vm_name }} DHCP network info to static
+  when: convert_dhcp_to_static|bool
+  block:
+  - name: CONFIGURE_VM configure {{ vm_name }} to use dhcp provided ip address as static ip config
+    import_tasks: build_network_config.yml
+
+  - name: SET-DHCP-TO-STATIC generate {{ vm_name }} ifcfg interface template
+    template:
+      src: ifcfg.j2
+      dest: "{{ vm_ifcfg }}"
+  
+  - name: SET-DHCP-TO-STATIC Shutdown VM
+    when: vm_ip_differ|bool
+    import_tasks: shutdown_vm.yml
+
+  - name: SET-DHCP-TO-STATIC deploy custom /etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+    when: vm_ip_differ|bool
+    command: >
+      /usr/local/bin/qubi-virt-customize -a {{ os_disk }} --upload {{ vm_ifcfg }}:/etc/sysconfig/network-scripts/ifcfg-{{ vm_nic }}
+    register: uploaded_static_ip
+  
+  - name: SET-DHCP-TO-STATIC startup VM
+    import_tasks: startup_vm.yml
+
+  - name: CONFIGURE_VM check if {{ vm_name }} is reachable on known ip address
+    wait_for:
+      host: "{{ vm_ip }}"
+      port: 22
+      delay: 10
+      timeout: 120
+      msg: "{{ vm_name }} not reachable on {{ vm_ip }}"
+    register: ping_result
+
+- name: CONFIGURE_VM add {{ vm_name }} to ansible inventory inventory
+  lineinfile:
+    path: "{{ inventory_file }}"
+    regexp: "^{{ vm_name }}"
+    line: "{{ vm_name }}   ansible_host={{ vm_ip }} ansible_user={{ admin_user }}"
+    insertafter: '^\[{{ inventory_group }}\]'
+    state: present
+  register: vm_inventory_status
+  when: update_inventory|bool and vm_ip is defined
