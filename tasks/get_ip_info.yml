@@ -25,6 +25,10 @@
   when: vm_ipaddress | length != 0 and (dhcp_vm_ip.stdout != vm_ipaddress)
 #  when: dhcp_vm_ip is not skipped and dhcp_vm_ip.stdout | length != 0
 
+- fail:
+    msg: "Could not find the ip address for the VM {{ vm_name }}."
+  when: vm_ip is not defined or vm_ip | length == 0
+
 - name: discover {{ vm_name }} netmask prefix when using DHCP
   shell: |
     /usr/local/bin/getvmip -a| awk -F'/' '/{{ vm_name }}/ {print $2}'
@@ -63,9 +67,6 @@
     vm_mac: "{{ vm_mac_result.stdout }}"
   when: vm_name in all_instances.list_vms and vm_mac is not defined
 
-- fail:
-    msg: "Could not find the ip address for the VM {{ vm_name }}."
-  when: vm_ip is not defined or vm_ip | length == 0
 
 - name: generate {{ vm_name }} ifcfg interface template
   template:
